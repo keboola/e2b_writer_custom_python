@@ -24,11 +24,46 @@ def get_api_key():
     try:
         from keboola.component import CommonInterface
 
-        ci = CommonInterface()
-        parameters = ci.configuration.parameters
+        print("=" * 60)
+        print("DEBUG: CommonInterface loaded successfully")
+        print("=" * 60)
 
-        # Debug: Print all available parameters (hiding sensitive values)
-        print(f"DEBUG: Available parameter keys: {list(parameters.keys())}")
+        ci = CommonInterface()
+
+        # Print everything we can from CommonInterface
+        print("\n--- CommonInterface Configuration ---")
+        print(f"Configuration object type: {type(ci.configuration)}")
+        print(f"Configuration dir: {dir(ci.configuration)}")
+
+        # Get parameters
+        parameters = ci.configuration.parameters
+        print(f"\n--- User Parameters ---")
+        print(f"Parameters type: {type(parameters)}")
+        print(f"Parameters keys: {list(parameters.keys())}")
+
+        # Print each parameter (mask sensitive values)
+        for key, value in parameters.items():
+            if key.startswith('#'):
+                # Sensitive parameter - show only first 8 chars
+                display_value = f"{value[:8]}..." if value and len(value) > 8 else "[empty]"
+                print(f"  {key}: {display_value} (length: {len(value) if value else 0})")
+            else:
+                # Non-sensitive parameter - show full value
+                print(f"  {key}: {value}")
+
+        # Check environment variables
+        print(f"\n--- Environment Variables ---")
+        if hasattr(ci, 'environment_variables'):
+            print(f"Environment variables available: {dir(ci.environment_variables)}")
+
+        # Print all env vars that might be relevant
+        print(f"\n--- OS Environment Variables (filtered) ---")
+        for env_key, env_value in os.environ.items():
+            if 'E2B' in env_key.upper() or 'API' in env_key.upper() or 'KEY' in env_key.upper():
+                display_val = f"{env_value[:8]}..." if len(env_value) > 8 else env_value
+                print(f"  {env_key}: {display_val}")
+
+        print("\n" + "=" * 60)
 
         # Try different possible keys for the API key
         # Keboola may store it as '#e2b_api_key' or 'e2b_api_key' depending on encryption
@@ -37,7 +72,7 @@ def get_api_key():
         for key in possible_keys:
             if key in parameters:
                 api_key = parameters[key]
-                print(f"DEBUG: Found key '{key}', value length: {len(api_key) if api_key else 0}")
+                print(f"\nDEBUG: Found key '{key}', value length: {len(api_key) if api_key else 0}")
 
                 if api_key and api_key.strip():
                     print(f"✓ Running in Keboola mode (using parameter key: {key})")
@@ -46,15 +81,20 @@ def get_api_key():
                     print(f"WARNING: Key '{key}' found but value is empty")
 
         # If we got here, CommonInterface loaded but no API key found
-        print("WARNING: Running in Keboola but e2b_api_key not found in user parameters")
+        print("\nWARNING: Running in Keboola but e2b_api_key not found in user parameters")
         print(f"DEBUG: Checked keys: {possible_keys}")
+        print(f"DEBUG: Available keys again: {list(parameters.keys())}")
 
-    except ImportError:
+    except ImportError as e:
         # CommonInterface not available - we're in local testing mode
         print("ℹ Running in local testing mode (CommonInterface not available)")
+        print(f"  ImportError: {e}")
         pass
     except Exception as e:
-        print(f"WARNING: Error loading Keboola configuration: {e}")
+        print(f"\nERROR: Exception while loading Keboola configuration")
+        print(f"  Exception type: {type(e).__name__}")
+        print(f"  Exception message: {e}")
+        print("\nFull traceback:")
         import traceback
         traceback.print_exc()
 
