@@ -126,6 +126,12 @@ def main():
     print(f"API Key: {api_key[:8]}..." if len(api_key) > 8 else "API Key: ***")
     print()
 
+    # IMPORTANT: e2b SDK reads API key from E2B_API_KEY environment variable
+    # Set it here regardless of where we got it from (Keboola params or env var)
+    os.environ['E2B_API_KEY'] = api_key
+    print("✓ E2B_API_KEY environment variable set for SDK")
+    print()
+
     try:
         # Create sandbox (API key is read from E2B_API_KEY environment variable)
         print("Creating e2b sandbox...")
