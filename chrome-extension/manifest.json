@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Keboola e2b Writer",
+  "version": "0.1.0",
+  "description": "Seamless integration between Keboola Connection and e2b sandboxes",
+  "permissions": [
+    "storage",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://*.keboola.com/*",
+    "https://api.e2b.dev/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.keboola.com/admin/projects/*/components/kds-team.app-custom-python/*"
+      ],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/inject-helper.js"],
+      "matches": ["https://*.keboola.com/*"]
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  }
+}
