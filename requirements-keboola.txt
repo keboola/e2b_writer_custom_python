@@ -1,8 +1,18 @@
 # Requirements for Keboola Custom Python Component
-# This file should be placed in the e2b_writer_custom_python GitHub repository
-
-# Keboola Component library (auto-installed by Keboola, but good to document)
-keboola.component>=2.0.0
+# This file (named requirements.txt) should be placed in the e2b_writer_custom_python GitHub repository
+#
+# How it works:
+# 1. When using Git repository mode in Keboola Custom Python component,
+#    the component automatically detects and installs packages from requirements.txt
+# 2. The #e2b_api_key parameter from User Parameters is accessible via:
+#    from keboola.component import CommonInterface
+#    ci = CommonInterface()
+#    api_key = ci.configuration.parameters['#e2b_api_key']
+#
+# Required packages:
 
 # e2b Code Interpreter SDK
 e2b-code-interpreter>=1.0.0
+
+# NOTE: keboola.component is automatically installed by Keboola, no need to include it here
+# However, main.py will gracefully fall back to environment variables for local testing

@@ -245,10 +245,14 @@ This pattern bypasses content script isolation to access page-level JavaScript o
    - Benefit: Simple deployment, no build step
    - Trade-off: No TypeScript, no tree-shaking
 
-8. **e2b SDK Usage**: Local testing uses synchronous `Sandbox.create()` API
-   - API key loaded from `E2B_API_KEY` environment variable
+8. **e2b SDK Usage**: Uses synchronous `Sandbox.create()` API
    - Execution output accessed via `execution.logs.stdout`
    - Sandbox cleanup via `sandbox.kill()`
+
+9. **Dual-Mode API Key Loading** (main.py:12-59): Supports both Keboola and local testing
+   - **Keboola mode**: Reads `#e2b_api_key` from user parameters via `CommonInterface`
+   - **Local mode**: Falls back to `E2B_API_KEY` environment variable
+   - Automatic detection with clear logging of active mode
 
 ## Documentation Structure
 
@@ -264,6 +268,29 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 
 ## Common Development Patterns
 
+### Understanding Keboola vs Local Testing Modes
+
+The `main.py` script supports two execution modes:
+
+**Keboola Mode** (Production):
+```python
+from keboola.component import CommonInterface
+
+ci = CommonInterface()
+api_key = ci.configuration.parameters['#e2b_api_key']  # Auto-decrypted
+```
+
+**Local Mode** (Development):
+```python
+import os
+api_key = os.environ.get('E2B_API_KEY')
+```
+
+The script automatically detects which mode to use:
+1. Tries `CommonInterface` first (Keboola mode)
+2. Falls back to environment variable if CommonInterface not available
+3. Logs clear messages about which mode is active
+
 ### Testing e2b Integration Locally
 
 1. **Set up environment:**
@@ -273,12 +300,12 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 
 2. **Run tests:**
    ```bash
-   ./setup_and_test.sh
+   ./tools/setup_and_test.sh
    ```
 
 3. **Develop incrementally:**
    - Edit `main.py` to add new functionality
-   - Run `./setup_and_test.sh` to test changes
+   - Run `./tools/setup_and_test.sh` to test changes
    - Check output for `execution.logs.stdout` content
 
 4. **Key patterns:**
@@ -295,6 +322,23 @@ This pattern bypasses content script isolation to access page-level JavaScript o
    # Cleanup
    sandbox.kill()
    ```
+
+### Testing in Keboola
+
+1. **Configure User Parameters** via Chrome extension:
+   - Set `e2b: true`
+   - Set `#e2b_api_key` (will be encrypted automatically)
+   - Set `e2b_template` and `e2b_timeout` as needed
+
+2. **Initialize Python environment**:
+   - Click "Initialize Python & Git Configuration" in extension
+   - Verifies Python 3.13 and Git repository are configured
+
+3. **Run the component**:
+   - Keboola automatically clones the repository
+   - Installs dependencies from `requirements.txt`
+   - Executes `main.py`
+   - API key is automatically loaded from user parameters
 
 ### Adding a New Configuration Field
 
