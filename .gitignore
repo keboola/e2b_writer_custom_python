@@ -1,3 +1,5 @@
 # Claude Code directories
 .claude/
 .playwright-mcp/
+.env
+venv/

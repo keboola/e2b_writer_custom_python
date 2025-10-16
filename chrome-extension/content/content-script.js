@@ -333,6 +333,17 @@ function createExtensionPanel() {
         </div>
 
         <div class="section">
+          <h3>🚀 Initialize e2b Writer</h3>
+          <div class="info-box">
+            <strong>One-click setup</strong>
+            This will automatically configure the Python environment and Git repository for e2b writer integration.
+          </div>
+          <button class="btn btn-primary" id="init-e2b-writer-btn" style="width: 100%;">
+            ⚙️ Initialize Python & Git Configuration
+          </button>
+        </div>
+
+        <div class="section">
           <h3>📦 e2b Configuration</h3>
 
           <div class="form-group">
@@ -409,6 +420,7 @@ function createExtensionPanel() {
     if (e.target.id === 'panel-overlay') closePanel();
   });
   shadow.getElementById('save-config-btn').addEventListener('click', saveConfiguration);
+  shadow.getElementById('init-e2b-writer-btn').addEventListener('click', initializeE2bWriter);
 
   // Template selector - show/hide custom template input
   shadow.getElementById('e2b-template').addEventListener('change', (e) => {
@@ -457,6 +469,184 @@ function showStatus(message, type = 'info') {
     setTimeout(() => {
       statusEl.classList.remove('visible');
     }, 5000);
+  }
+}
+
+// Initialize e2b Writer configuration (Python version + Git repo)
+async function initializeE2bWriter() {
+  const shadow = document.getElementById('kbc-e2b-extension-root')?.shadowRoot;
+  if (!shadow) return;
+
+  showStatus('Initializing e2b Writer configuration...', 'info');
+  const initBtn = shadow.getElementById('init-e2b-writer-btn');
+  initBtn.disabled = true;
+
+  try {
+    // Step 1: Set Python version to 3.13
+    console.log('[e2b Extension] Setting Python version to 3.13...');
+    const pythonRadios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(r => {
+      const label = r.parentElement?.textContent || '';
+      return label.includes('Python 3.13');
+    });
+
+    if (pythonRadios.length === 0) {
+      throw new Error('Could not find Python 3.13 radio button');
+    }
+
+    pythonRadios[0].click();
+    console.log('[e2b Extension] ✓ Python 3.13 selected');
+
+    // Wait for UI to update
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Step 2: Select "Get from Git repository" option
+    console.log('[e2b Extension] Setting source to Git repository...');
+    const gitRadios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(r => {
+      const label = r.parentElement?.textContent || '';
+      return label.includes('Get from Git repository');
+    });
+
+    if (gitRadios.length === 0) {
+      throw new Error('Could not find "Get from Git repository" radio button');
+    }
+
+    gitRadios[0].click();
+    console.log('[e2b Extension] ✓ Git repository mode selected');
+
+    // Wait for Git form fields to appear
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Step 3: Fill in Git repository details
+    console.log('[e2b Extension] Filling in Git repository details...');
+
+    // Find and fill Repository URL
+    const repoUrlInputs = Array.from(document.querySelectorAll('input[type="text"], input[type="url"]')).filter(input => {
+      const label = input.previousElementSibling?.textContent || input.parentElement?.textContent || '';
+      return label.toLowerCase().includes('repository') && label.toLowerCase().includes('url');
+    });
+
+    if (repoUrlInputs.length > 0) {
+      repoUrlInputs[0].value = 'https://github.com/keboola/e2b_writer_custom_python';
+      repoUrlInputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+      repoUrlInputs[0].dispatchEvent(new Event('change', { bubbles: true }));
+      console.log('[e2b Extension] ✓ Repository URL set');
+    } else {
+      console.warn('[e2b Extension] Could not find Repository URL field');
+    }
+
+    // Select "Public" radio button (if exists)
+    const publicRadios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(r => {
+      const label = r.parentElement?.textContent || r.nextElementSibling?.textContent || '';
+      return label.trim() === 'Public' || label.includes('Public repository');
+    });
+
+    if (publicRadios.length > 0) {
+      publicRadios[0].click();
+      console.log('[e2b Extension] ✓ Public repository selected');
+    }
+
+    // Wait for form to update
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Find and fill Branch Name - use multiple strategies
+    let branchInputs = Array.from(document.querySelectorAll('input[type="text"]')).filter(input => {
+      // Check label text
+      const labelFor = input.id ? document.querySelector(`label[for="${input.id}"]`)?.textContent || '' : '';
+      const prevLabel = input.previousElementSibling?.textContent || '';
+      const parentLabel = input.closest('label')?.textContent || '';
+      const containerLabel = input.parentElement?.previousElementSibling?.textContent || '';
+
+      const allLabels = (labelFor + prevLabel + parentLabel + containerLabel).toLowerCase();
+
+      // Check placeholder and name attribute
+      const placeholder = (input.placeholder || '').toLowerCase();
+      const name = (input.name || '').toLowerCase();
+
+      return allLabels.includes('branch') || placeholder.includes('branch') || name.includes('branch');
+    });
+
+    // If not found, try searching all text inputs after the Git repository section
+    if (branchInputs.length === 0) {
+      console.log('[e2b Extension] Trying alternative branch field search...');
+      const allTextInputs = Array.from(document.querySelectorAll('input[type="text"]'));
+      // Find inputs that appear after "Get from Git repository" text
+      branchInputs = allTextInputs.filter(input => {
+        const rect = input.getBoundingClientRect();
+        return rect.top > 0 && input.offsetParent !== null;
+      }).slice(0, 5); // Take first few visible inputs after Git selection
+    }
+
+    if (branchInputs.length > 0) {
+      // Try setting value on the most likely candidate
+      for (const input of branchInputs) {
+        console.log('[e2b Extension] Trying to set branch on input:', {
+          id: input.id,
+          name: input.name,
+          placeholder: input.placeholder,
+          value: input.value
+        });
+
+        input.value = 'main';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event('blur', { bubbles: true }));
+
+        // Check if it took
+        if (input.value === 'main') {
+          console.log('[e2b Extension] ✓ Branch name set to "main" on input:', input.id || input.name);
+          break;
+        }
+      }
+    } else {
+      console.warn('[e2b Extension] Could not find Branch Name field');
+    }
+
+    // Find and fill Script Filename
+    const scriptInputs = Array.from(document.querySelectorAll('input[type="text"]')).filter(input => {
+      const label = input.previousElementSibling?.textContent || input.parentElement?.textContent || '';
+      const placeholder = input.placeholder || '';
+      return label.toLowerCase().includes('script') && label.toLowerCase().includes('filename')
+        || placeholder.toLowerCase().includes('script') || placeholder.toLowerCase().includes('.py');
+    });
+
+    if (scriptInputs.length > 0) {
+      scriptInputs[0].value = 'main.py';
+      scriptInputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+      scriptInputs[0].dispatchEvent(new Event('change', { bubbles: true }));
+      console.log('[e2b Extension] ✓ Script filename set to "main.py"');
+    } else {
+      console.warn('[e2b Extension] Could not find Script Filename field');
+    }
+
+    // Wait a moment before saving
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Step 4: Click the Save button
+    console.log('[e2b Extension] Looking for Save button...');
+    const saveButtons = Array.from(document.querySelectorAll('button')).filter(btn =>
+      btn.textContent.trim() === 'Save' && btn.offsetParent !== null
+    );
+
+    if (saveButtons.length > 0) {
+      console.log('[e2b Extension] Clicking Save button...');
+      saveButtons[0].click();
+
+      // Wait for save to complete
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      showStatus('✓ e2b Writer initialized successfully! Python 3.13 and Git repo configured.', 'success');
+      console.log('[e2b Extension] ✓ Initialization complete!');
+    } else {
+      showStatus('✓ Configuration set! Please click "Save" button manually to complete.', 'success');
+      console.warn('[e2b Extension] Could not find Save button, user must save manually');
+    }
+
+    initBtn.disabled = false;
+
+  } catch (error) {
+    console.error('[e2b Extension] Initialization error:', error);
+    showStatus(`Failed to initialize: ${error.message}`, 'error');
+    initBtn.disabled = false;
   }
 }
 

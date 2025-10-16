@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 **kbc-e2b-writer** is a Chrome extension that integrates Keboola Connection's Custom Python component with e2b (ephemeral sandbox environments). It enables users to:
+- One-click initialization of Python environment (3.13) and Git repository configuration
 - Upload files from browser to both Keboola Storage and e2b sandboxes
 - Configure e2b parameters (API key, template, timeout) directly in Keboola UI
 - Execute Python code in isolated e2b environments
@@ -44,19 +45,44 @@ https://connection.eu-central-1.keboola.com/admin/projects/33/components/kds-tea
 
 The extension only injects UI when `e2b: true` exists in the User Parameters JSON editor.
 
+### Local Python Development
+
+**Setup and test e2b integration locally:**
+```bash
+# Set your e2b API key in .env file
+echo "E2B_API_KEY=your-key-here" > .env
+
+# Run automated setup and test
+./setup_and_test.sh
+```
+
+**Files:**
+- `main.py` - Local e2b sandbox test script with 4 test cases
+- `setup_and_test.sh` - Automated setup (venv, dependencies, tests)
+- `requirements.txt` - Python dependencies (e2b-code-interpreter)
+- `.env` - Environment variables (E2B_API_KEY)
+- `TEST_README.md` - Comprehensive local testing guide
+
 ## Architecture
 
 ### File Structure
 
 ```
-chrome-extension/
-├── manifest.json                   # Extension manifest (V3)
-├── background/
-│   └── service-worker.js          # API proxy, token capture
-├── content/
-│   ├── content-script.js          # Main injection logic
-│   └── inject-helper.js           # Page context helper (CodeMirror access)
-└── assets/icons/                  # Extension icons
+kbc-e2b-writer/
+├── chrome-extension/
+│   ├── manifest.json               # Extension manifest (V3)
+│   ├── background/
+│   │   └── service-worker.js      # API proxy, token capture
+│   ├── content/
+│   │   ├── content-script.js      # Main injection logic
+│   │   └── inject-helper.js       # Page context helper (CodeMirror access)
+│   └── assets/icons/              # Extension icons
+├── main.py                         # Local e2b sandbox test script
+├── requirements.txt                # Python dependencies
+├── setup_and_test.sh              # Automated local setup/test
+├── .env                           # Environment variables (not in git)
+├── .env.example                   # Environment template
+└── TEST_README.md                 # Local testing guide
 ```
 
 ### Key Components
@@ -71,6 +97,12 @@ chrome-extension/
 - Checks if `e2b: true` exists in User Parameters before injecting UI
 - Injects "e2b Integration" button into Keboola action panel
 - Creates configuration modal using Shadow DOM for style isolation
+- **Initialization Feature** (lines 475-614): One-click setup that:
+  - Selects Python 3.13 environment
+  - Configures Git repository mode
+  - Sets repo URL: `https://github.com/keboola/e2b_writer_custom_python`
+  - Sets branch to `main` and script filename to `main.py`
+  - Automatically saves configuration
 - Handles SPA navigation via `MutationObserver`
 
 **inject-helper.js** (chrome-extension/content/inject-helper.js)
@@ -102,12 +134,24 @@ Right-side action panel, after "Debug mode" button
 
 ### Data Flow
 
+**Extension Configuration:**
 1. **Extension loads** → Service worker captures Keboola API token from HTTP headers
 2. **User visits config page** → Content script checks for `e2b: true` in User Parameters
 3. **If enabled** → Button injected into action panel
 4. **User clicks button** → Modal opens, loads current config from CodeMirror
 5. **User configures** → Extension updates User Parameters JSON
 6. **Extension clicks Save** → Configuration persisted to Keboola
+
+**Initialization Flow:**
+1. **User clicks "Initialize Python & Git Configuration"** → Extension manipulates DOM
+2. **Python 3.13 selected** → Radio button clicked programmatically
+3. **Git repository mode enabled** → Radio button clicked
+4. **Git settings populated:**
+   - Repository URL: `https://github.com/keboola/e2b_writer_custom_python`
+   - Access: Public
+   - Branch: `main`
+   - Script: `main.py`
+5. **Save button clicked** → Configuration persisted automatically
 
 ### CodeMirror Access Pattern
 
@@ -163,8 +207,10 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 
 **Phase 2: Configuration Management** ✅ (Complete)
 - e2b settings, Keboola parameter sync, encryption handling
+- One-click initialization (Python 3.13 + Git repo configuration)
+- Local development environment (main.py, testing scripts)
 
-**Phase 3: File Upload** 🚧 (In Progress)
+**Phase 3: File Upload** 🚧 (Next)
 - Keboola Storage upload, e2b sandbox upload, progress tracking
 
 **Phase 4: Advanced Features** (Planned)
@@ -175,25 +221,40 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 1. **Conditional Injection**: Extension only injects UI when `e2b: true` exists in User Parameters
    - Rationale: Avoid clutter for users not using e2b integration
 
-2. **Template Parameter Always Defined**: `e2b_template` is always stored with a concrete value (content-script.js:569-621)
+2. **Python Version**: Configured to use Python 3.13
+   - Rationale: Latest stable Python version with improved performance
+   - Location: Initialization function (content-script.js:485-497)
+
+3. **Template Parameter Always Defined**: `e2b_template` is always stored with a concrete value
    - When "Default" is selected: stores `"code-interpreter"`
    - When custom template is entered: stores the custom template ID
    - Rationale: User Parameters become environment variables for Python scripts using e2b SDK
-   - Implementation: Loading logic (content-script.js:512-532) recognizes `"code-interpreter"` as default and displays "Default" in UI
 
-3. **CodeMirror Detection**: Helper script finds editor by checking if content includes `"debug"` or `"e2b"`
+4. **Branch Field Detection**: Uses multiple fallback strategies (content-script.js:551-602)
+   - Checks label text, placeholder, name attribute
+   - Falls back to visible text inputs if specific match not found
+   - Logs detailed debug information for troubleshooting
+
+5. **CodeMirror Detection**: Helper script finds editor by checking if content includes `"debug"` or `"e2b"`
    - Limitation: May fail if User Parameters is completely empty
 
-4. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
+6. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
    - Trade-off: Some performance overhead, but reliable detection
 
-5. **No Build System**: Pure vanilla JS, no bundler
+7. **No Build System**: Pure vanilla JS, no bundler
    - Benefit: Simple deployment, no build step
    - Trade-off: No TypeScript, no tree-shaking
+
+8. **e2b SDK Usage**: Local testing uses synchronous `Sandbox.create()` API
+   - API key loaded from `E2B_API_KEY` environment variable
+   - Execution output accessed via `execution.logs.stdout`
+   - Sandbox cleanup via `sandbox.kill()`
 
 ## Documentation Structure
 
 - **README.md** (root): High-level research notes on Keboola/e2b integration
+- **CLAUDE.md** (this file): Development guide for AI assistants
+- **TEST_README.md**: Local testing guide with troubleshooting
 - **chrome-extension/README.md**: Installation, testing, debugging guide
 - **docs/plan/README.md**: Planning docs index
 - **docs/plan/chrome-extension-plan.md**: Full technical specification
@@ -203,12 +264,44 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 
 ## Common Development Patterns
 
+### Testing e2b Integration Locally
+
+1. **Set up environment:**
+   ```bash
+   echo "E2B_API_KEY=your-key-here" > .env
+   ```
+
+2. **Run tests:**
+   ```bash
+   ./setup_and_test.sh
+   ```
+
+3. **Develop incrementally:**
+   - Edit `main.py` to add new functionality
+   - Run `./setup_and_test.sh` to test changes
+   - Check output for `execution.logs.stdout` content
+
+4. **Key patterns:**
+   ```python
+   # Create sandbox
+   sandbox = Sandbox.create()
+
+   # Run code
+   execution = sandbox.run_code("print('hello')")
+
+   # Get output
+   output = ''.join(execution.logs.stdout)
+
+   # Cleanup
+   sandbox.kill()
+   ```
+
 ### Adding a New Configuration Field
 
 1. Update User Parameters schema in planning docs
-2. Add form field to Shadow DOM in content-script.js:326-393
-3. Update `loadCurrentConfiguration()` to populate field (lines 512-532 for template example)
-4. Update `saveConfiguration()` to read and persist field (lines 569-621 for template example)
+2. Add form field to Shadow DOM in content-script.js:335-393
+3. Update `loadCurrentConfiguration()` to populate field
+4. Update `saveConfiguration()` to read and persist field
 5. Test with encryption (prefix with `#` for sensitive values)
 
 **Example - Template Parameter:**
