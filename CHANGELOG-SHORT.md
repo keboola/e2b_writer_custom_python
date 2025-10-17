@@ -2,7 +2,8 @@
 
 **What it does:** Execute Python code in isolated e2b sandboxes with automatic input data transfer.
 
-**Key Features:**
+## Key Features
+
 - ✅ One-click Python 3.13 + Git repository initialization
 - ✅ Secure e2b API key configuration (auto-encrypted)
 - ✅ Automatic CSV file transfer from Keboola to sandbox
