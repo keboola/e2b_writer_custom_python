@@ -1085,7 +1085,17 @@ function hideUnnecessarySections() {
     }
   }
 
-  // 5. Python Version & Environment - hide but keep in DOM for programmatic control
+  // 5. Processors - hide the .box-collapsible container
+  const processorsHeading = headings.find(h => h.textContent.trim() === 'Processors');
+  if (processorsHeading) {
+    const container = processorsHeading.closest('.box-collapsible');
+    if (container) {
+      container.style.display = 'none';
+      console.log('[e2b Extension] Hidden section: Processors');
+    }
+  }
+
+  // 6. Python Version & Environment - hide but keep in DOM for programmatic control
   // Find Python version radio buttons first
   const pythonRadios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(r => {
     const label = r.parentElement?.textContent || '';
@@ -1135,7 +1145,7 @@ function hideUnnecessarySections() {
     }
   }
 
-  // 6. User Parameters - add informational text
+  // 7. User Parameters - add informational text
   const userParamsLabel = Array.from(document.querySelectorAll('label')).find(label =>
     label.textContent.trim() === 'User Parameters'
   );
@@ -1153,7 +1163,7 @@ function hideUnnecessarySections() {
     }
   }
 
-  // 7. Source Code & Dependencies - hide radio buttons but keep in DOM for programmatic control
+  // 8. Source Code & Dependencies - hide radio buttons but keep in DOM for programmatic control
   // Find "Write your code inline" or "Get from Git repository" radio buttons
   const sourceCodeRadios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(r => {
     const label = r.parentElement?.textContent || '';
