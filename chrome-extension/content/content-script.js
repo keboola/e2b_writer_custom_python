@@ -567,75 +567,11 @@ async function initializeE2bWriter() {
     // Wait for form to update
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Find and fill Branch Name - use multiple strategies
-    let branchInputs = Array.from(document.querySelectorAll('input[type="text"]')).filter(input => {
-      // Check label text
-      const labelFor = input.id ? document.querySelector(`label[for="${input.id}"]`)?.textContent || '' : '';
-      const prevLabel = input.previousElementSibling?.textContent || '';
-      const parentLabel = input.closest('label')?.textContent || '';
-      const containerLabel = input.parentElement?.previousElementSibling?.textContent || '';
-
-      const allLabels = (labelFor + prevLabel + parentLabel + containerLabel).toLowerCase();
-
-      // Check placeholder and name attribute
-      const placeholder = (input.placeholder || '').toLowerCase();
-      const name = (input.name || '').toLowerCase();
-
-      return allLabels.includes('branch') || placeholder.includes('branch') || name.includes('branch');
-    });
-
-    // If not found, try searching all text inputs after the Git repository section
-    if (branchInputs.length === 0) {
-      console.log('[e2b Extension] Trying alternative branch field search...');
-      const allTextInputs = Array.from(document.querySelectorAll('input[type="text"]'));
-      // Find inputs that appear after "Get from Git repository" text
-      branchInputs = allTextInputs.filter(input => {
-        const rect = input.getBoundingClientRect();
-        return rect.top > 0 && input.offsetParent !== null;
-      }).slice(0, 5); // Take first few visible inputs after Git selection
-    }
-
-    if (branchInputs.length > 0) {
-      // Try setting value on the most likely candidate
-      for (const input of branchInputs) {
-        console.log('[e2b Extension] Trying to set branch on input:', {
-          id: input.id,
-          name: input.name,
-          placeholder: input.placeholder,
-          value: input.value
-        });
-
-        input.value = 'main';
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        input.dispatchEvent(new Event('blur', { bubbles: true }));
-
-        // Check if it took
-        if (input.value === 'main') {
-          console.log('[e2b Extension] ✓ Branch name set to "main" on input:', input.id || input.name);
-          break;
-        }
-      }
-    } else {
-      console.warn('[e2b Extension] Could not find Branch Name field');
-    }
-
-    // Find and fill Script Filename
-    const scriptInputs = Array.from(document.querySelectorAll('input[type="text"]')).filter(input => {
-      const label = input.previousElementSibling?.textContent || input.parentElement?.textContent || '';
-      const placeholder = input.placeholder || '';
-      return label.toLowerCase().includes('script') && label.toLowerCase().includes('filename')
-        || placeholder.toLowerCase().includes('script') || placeholder.toLowerCase().includes('.py');
-    });
-
-    if (scriptInputs.length > 0) {
-      scriptInputs[0].value = 'main.py';
-      scriptInputs[0].dispatchEvent(new Event('input', { bubbles: true }));
-      scriptInputs[0].dispatchEvent(new Event('change', { bubbles: true }));
-      console.log('[e2b Extension] ✓ Script filename set to "main.py"');
-    } else {
-      console.warn('[e2b Extension] Could not find Script Filename field');
-    }
+    // Note: Branch Name and Script Filename are React Select dropdowns
+    // Since they default to "main" and "main.py" respectively, we can skip setting them
+    // and just save with the defaults. The user can manually use "List Branches" and
+    // "List Files" buttons if they want to verify or change these values.
+    console.log('[e2b Extension] Skipping branch/file selection (using defaults: main/main.py)');
 
     // Wait a moment before saving
     await new Promise(resolve => setTimeout(resolve, 500));
