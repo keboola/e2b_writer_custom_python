@@ -1441,11 +1441,61 @@ async function showChangelogContent() {
 
 // Simple markdown to HTML converter (basic implementation)
 function markdownToHtml(markdown) {
-  let html = markdown
+  // Split into blocks by double newlines
+  const blocks = markdown.split(/\n\n+/);
+  const processedBlocks = [];
+
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+
     // Headers
-    .replace(/^### (.*$)/gim, '<h3 style="color: #333; margin: 20px 0 10px 0;">$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2 style="color: #ff8800; margin: 30px 0 15px 0; border-bottom: 2px solid #ff8800; padding-bottom: 5px;">$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1 style="color: #333; margin: 0 0 20px 0;">$1</h1>')
+    if (trimmed.match(/^### /)) {
+      processedBlocks.push(trimmed.replace(/^### (.*)$/gim, '<h3 style="color: #333; margin: 20px 0 10px 0;">$1</h3>'));
+    } else if (trimmed.match(/^## /)) {
+      processedBlocks.push(trimmed.replace(/^## (.*)$/gim, '<h2 style="color: #ff8800; margin: 30px 0 15px 0; border-bottom: 2px solid #ff8800; padding-bottom: 5px;">$1</h2>'));
+    } else if (trimmed.match(/^# /)) {
+      processedBlocks.push(trimmed.replace(/^# (.*)$/gim, '<h1 style="color: #333; margin: 0 0 20px 0;">$1</h1>'));
+    }
+    // Horizontal rule
+    else if (trimmed === '---') {
+      processedBlocks.push('<hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />');
+    }
+    // Ordered list
+    else if (trimmed.match(/^\d+\.\s+/m)) {
+      const items = trimmed.split('\n').map(line => {
+        const match = line.match(/^\d+\.\s+(.*)$/);
+        if (match) {
+          return `<li>${processInline(match[1])}</li>`;
+        }
+        return '';
+      }).filter(Boolean).join('');
+      processedBlocks.push(`<ol style="margin: 10px 0; padding-left: 25px;">${items}</ol>`);
+    }
+    // Unordered list
+    else if (trimmed.match(/^- /m)) {
+      const items = trimmed.split('\n').map(line => {
+        const match = line.match(/^- (.*)$/);
+        if (match) {
+          return `<li>${processInline(match[1])}</li>`;
+        }
+        return '';
+      }).filter(Boolean).join('');
+      processedBlocks.push(`<ul style="margin: 10px 0; padding-left: 25px;">${items}</ul>`);
+    }
+    // Paragraph
+    else {
+      const lines = trimmed.split('\n').map(line => processInline(line)).join('<br>');
+      processedBlocks.push(`<p style="margin: 10px 0; line-height: 1.6; color: #333;">${lines}</p>`);
+    }
+  }
+
+  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">${processedBlocks.join('\n')}</div>`;
+}
+
+// Process inline markdown (bold, italic, code, links, etc.)
+function processInline(text) {
+  return text
     // Bold
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     // Italic
@@ -1454,36 +1504,8 @@ function markdownToHtml(markdown) {
     .replace(/`([^`]+)`/g, '<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">$1</code>')
     // Links
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: #ff8800; text-decoration: none;">$1</a>')
-    // Horizontal rule
-    .replace(/^---$/gim, '<hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />')
-    // Ordered list items (numbered)
-    .replace(/^\d+\.\s+(.*)$/gim, '<li-ordered style="margin: 5px 0;">$1</li-ordered>')
-    // Unordered list items
-    .replace(/^- (.*)$/gim, '<li-unordered style="margin: 5px 0;">$1</li-unordered>')
     // Checkmarks
     .replace(/✅/g, '<span style="color: #4caf50;">✅</span>');
-
-  // Wrap ordered list items in ol tags
-  html = html.replace(/(<li-ordered[^>]*>.*<\/li-ordered>\s*)+/gs, (match) => {
-    const items = match.replace(/<li-ordered/g, '<li').replace(/<\/li-ordered>/g, '</li>');
-    return `<ol style="margin: 10px 0; padding-left: 25px;">${items}</ol>`;
-  });
-
-  // Wrap unordered list items in ul tags
-  html = html.replace(/(<li-unordered[^>]*>.*<\/li-unordered>\s*)+/gs, (match) => {
-    const items = match.replace(/<li-unordered/g, '<li').replace(/<\/li-unordered>/g, '</li>');
-    return `<ul style="margin: 10px 0; padding-left: 25px;">${items}</ul>`;
-  });
-
-  // Wrap paragraphs
-  html = html.split('\n\n').map(para => {
-    if (para.trim() && !para.startsWith('<')) {
-      return `<p style="margin: 10px 0; line-height: 1.6; color: #333;">${para}</p>`;
-    }
-    return para;
-  }).join('\n');
-
-  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">${html}</div>`;
 }
 
 // SPA navigation detection
