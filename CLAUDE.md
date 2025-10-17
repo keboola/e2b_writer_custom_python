@@ -218,22 +218,28 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 - One-click initialization (Python 3.13 + Git repo configuration)
 - Local development environment (main.py, testing scripts)
 
-**Phase 3: File Upload** 🚧 (Next)
-- Keboola Storage upload, e2b sandbox upload, progress tracking
+**Phase 3: Input Mapping & Data Transfer** ✅ (Complete)
+- Keboola Input Mapping integration via CommonInterface
+- Automatic CSV file transfer to e2b sandboxes
+- Comprehensive DEBUG logging with timing and error tracking
+- Object-based table access (table.destination, table_def.full_path)
 
 **Phase 4: Advanced Features** (Planned)
-- Sandbox lifecycle management, error handling, retry logic
+- Output table mapping
+- File input/output support
+- Sandbox lifecycle management
+- Advanced error handling and retry logic
 
 ## Known Issues & Design Decisions
 
 1. **UI Simplification**: Extension automatically hides unnecessary sections to streamline the interface
-   - **Hidden sections:** Configuration Description, Table Output Mapping, File Output Mapping, Variables
+   - **Hidden sections:** Configuration Description, Table Output Mapping, File Output Mapping, Variables, Processors
    - **Python Version section:** Radio buttons hidden off-screen (position: absolute; left: -9999px) with informational message "Python Environment: Managed by e2b Integration" shown instead
    - **Source Code radio buttons:** Hidden off-screen to prevent switching between Git and inline code
    - **User Parameters notice:** Blue info box added above editor explaining parameters are managed via e2b Integration panel
    - **Key design decision:** Elements are hidden visually but kept in the DOM so the initialization function can still interact with them programmatically (e.g., clicking Python 3.13 radio button)
    - Rationale: Reduce UI clutter, focus user attention on e2b-relevant settings, while maintaining full programmatic control
-   - Implementation: Uses `position: absolute; left: -9999px; visibility: hidden;` instead of `display: none` or innerHTML replacement (content-script.js:1069-1152)
+   - Implementation: Uses `position: absolute; left: -9999px; visibility: hidden;` instead of `display: none` or innerHTML replacement (content-script.js:1088-1203)
 
 2. **Conditional Injection**: Extension only injects UI when `e2b: true` exists in User Parameters
    - Rationale: Avoid clutter for users not using e2b integration
@@ -277,6 +283,27 @@ This pattern bypasses content script isolation to access page-level JavaScript o
    - Test locally first, then commit/push, then test in Keboola
    - Branch used: `fix/keboola-api-key-integration` (configurable)
    - Reference: https://raw.githubusercontent.com/keboola/component-custom-python/refs/heads/main/README.md
+
+12. **e2b Integration Button**: Positioned at top of action panel with brand styling
+   - **Position**: First item in action list (above green RUN COMPONENT button)
+   - **Styling**: Solid e2b orange (#ff8800) background, white text, 40px height
+   - **Hover effect**: Darkens to #e67a00 with enhanced shadow
+   - **Implementation**: insertBefore() places button before all other actions (content-script.js:1023-1027)
+
+13. **Component Icon Replacement**: Custom Python icon replaced with e2b logo
+   - **Icon**: e2b black star logo from `chrome-extension/public/e2b.png`
+   - **Background**: e2b brand orange (#ff8800) with 8px padding
+   - **CSS Override**: Removes `bg-color-white` class and uses `!important` flag
+   - **Purpose**: Visual branding and instant recognition of e2b-enabled configs
+   - **Implementation**: replaceComponentIcon() function (content-script.js:1188-1230)
+
+14. **Input Mapping Object Access** (main.py:275-292): CRITICAL - tables are objects, not dicts
+   - **Correct**: `table.destination`, `table.source` (property access)
+   - **Wrong**: `table.get('destination')`, `table['destination']` (dict access)
+   - **Correct**: `table_def.column_names` or `table_def.columns`
+   - **Rationale**: CommonInterface returns objects with properties, not dictionaries
+   - **Reference**: Official Keboola Custom Python README examples
+   - **Impact**: This was causing "Input data processing failed" errors
 
 ## Documentation Structure
 
@@ -428,6 +455,65 @@ Keboola does NOT use your local files. It clones the code from the Git repositor
    - Installs dependencies from `requirements.txt`
    - Executes `main.py`
    - API key is automatically loaded from user parameters
+
+### Working with Input Mapping
+
+**CRITICAL:** Input tables from Keboola are **objects with properties**, not dictionaries!
+
+**Correct Pattern (from official README):**
+```python
+from keboola.component import CommonInterface
+
+ci = CommonInterface()
+input_tables = ci.configuration.tables_input_mapping
+
+for table in input_tables:
+    # Access as object properties, NOT dict keys!
+    table_name = table.destination          # ✅ Correct
+    source_id = table.source                # ✅ Correct
+
+    # Get table definition
+    table_def = ci.get_input_table_definition_by_name(table_name)
+
+    # Access table_def properties
+    local_path = table_def.full_path        # ✅ Correct
+    columns = table_def.column_names        # ✅ Correct (or .columns)
+
+    # Read CSV file
+    with open(local_path, 'r') as f:
+        csv_content = f.read()
+```
+
+**WRONG - Will cause errors:**
+```python
+# ❌ WRONG - These will fail!
+table_name = table.get('destination')       # AttributeError
+table_name = table['destination']           # TypeError
+columns = table_def['columns']              # TypeError
+```
+
+**How Keboola Materializes Tables:**
+1. Tables configured in Input Mapping are copied to `/data/in/tables/`
+2. Files: `locations.csv` + `locations.csv.manifest` (JSON metadata)
+3. CommonInterface reads manifests to provide table definitions
+4. Your code reads the CSV files using paths from table_def
+
+**DEBUG Logging for Input Mapping:**
+```python
+# Log data directory contents
+data_dir = ci.data_folder_path
+logging.debug(f"Data folder: {data_dir}")
+
+# List materialized files
+import os
+files = os.listdir(os.path.join(data_dir, 'in', 'tables'))
+logging.debug(f"Input files: {files}")
+
+# Log table info
+logging.debug(f"Table destination: {table.destination}")
+logging.debug(f"Table source: {table.source}")
+logging.debug(f"Full path: {table_def.full_path}")
+```
 
 ### Adding a New Configuration Field
 
