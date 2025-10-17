@@ -268,21 +268,11 @@ This pattern bypasses content script isolation to access page-level JavaScript o
    - Benefit: Simple deployment, no build step
    - Trade-off: No TypeScript, no tree-shaking
 
-9. **e2b SDK Usage**: Uses synchronous `Sandbox.create()` API
-   - Execution output accessed via `execution.logs.stdout`
-   - Sandbox cleanup via `sandbox.kill()`
+9. **e2b SDK Usage**: See "Testing e2b Integration Locally" section for complete patterns
 
-10. **Dual-Mode API Key Loading** (main.py:12-59): Supports both Keboola and local testing
-    - **Keboola mode**: Reads `#e2b_api_key` from user parameters via `CommonInterface`
-    - **Local mode**: Falls back to `E2B_API_KEY` environment variable
-    - Automatic detection with clear logging of active mode
+10. **Dual-Mode API Key Loading**: See "Understanding Keboola vs Local Testing Modes" section for details
 
-11. **GitHub-Based Deployment**: Keboola loads code from Git repository (not local files)
-   - All changes to `main.py` MUST be committed and pushed to GitHub
-   - Keboola clones from the repository URL in the configuration
-   - Test locally first, then commit/push, then test in Keboola
-   - Branch used: `fix/keboola-api-key-integration` (configurable)
-   - Reference: https://raw.githubusercontent.com/keboola/component-custom-python/refs/heads/main/README.md
+11. **GitHub-Based Deployment**: See "Testing in Keboola" section - all `main.py` changes MUST be pushed to GitHub before Keboola testing
 
 12. **e2b Integration Button**: Positioned at top of action panel with brand styling
    - **Position**: First item in action list (above green RUN COMPONENT button)
@@ -297,13 +287,7 @@ This pattern bypasses content script isolation to access page-level JavaScript o
    - **Purpose**: Visual branding and instant recognition of e2b-enabled configs
    - **Implementation**: replaceComponentIcon() function (content-script.js:1188-1230)
 
-14. **Input Mapping Object Access** (main.py:275-292): CRITICAL - tables are objects, not dicts
-   - **Correct**: `table.destination`, `table.source` (property access)
-   - **Wrong**: `table.get('destination')`, `table['destination']` (dict access)
-   - **Correct**: `table_def.column_names` or `table_def.columns`
-   - **Rationale**: CommonInterface returns objects with properties, not dictionaries
-   - **Reference**: Official Keboola Custom Python README examples
-   - **Impact**: This was causing "Input data processing failed" errors
+14. **Input Mapping Object Access**: CRITICAL - See "Working with Input Mapping" section for complete details on object vs dict access patterns
 
 ## Documentation Structure
 
