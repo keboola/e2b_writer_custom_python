@@ -1199,9 +1199,9 @@ function replaceComponentIcon() {
     // Replace the icon
     componentIcon.src = e2bLogoUrl;
 
-    // Adjust styling for better appearance
+    // Adjust styling with e2b brand orange background
     componentIcon.style.padding = '8px';
-    componentIcon.style.backgroundColor = 'white';
+    componentIcon.style.backgroundColor = '#ff8800';  // e2b brand orange
 
     console.log('[e2b Extension] ✓ Component icon replaced with e2b logo');
   } else {
@@ -1213,7 +1213,7 @@ function replaceComponentIcon() {
         const e2bLogoUrl = chrome.runtime.getURL('public/e2b.png');
         retryIcon.src = e2bLogoUrl;
         retryIcon.style.padding = '8px';
-        retryIcon.style.backgroundColor = 'white';
+        retryIcon.style.backgroundColor = '#ff8800';  // e2b brand orange
         console.log('[e2b Extension] ✓ Component icon replaced with e2b logo (retry)');
       }
     }, 500);
