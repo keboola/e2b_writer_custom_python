@@ -262,14 +262,27 @@ def process_input_data(sandbox):
 
         logging.info(f"Found {len(input_tables)} input table(s) in Input Mapping")
 
+        # Log data directory information for debugging
+        data_dir = ci.data_folder_path
+        logging.debug(f"Data folder path: {data_dir}")
+        if os.path.exists(os.path.join(data_dir, 'in', 'tables')):
+            tables_dir = os.path.join(data_dir, 'in', 'tables')
+            files_in_dir = os.listdir(tables_dir)
+            logging.debug(f"Files in {tables_dir}: {files_in_dir}")
+        else:
+            logging.warning(f"Input tables directory does not exist: {os.path.join(data_dir, 'in', 'tables')}")
+
         # Process each input table
         for idx, table_config in enumerate(input_tables, 1):
             table_name = table_config.get('destination', 'unknown')
             logging.info(f"Processing table {idx}/{len(input_tables)}: {table_name}")
+            logging.debug(f"  Full table_config: {table_config}")
 
             try:
                 # Get table definition (includes full_path)
+                logging.debug(f"  Calling get_input_table_definition_by_name('{table_name}')")
                 table_def = ci.get_input_table_definition_by_name(table_name)
+                logging.debug(f"  Table definition retrieved: {table_def}")
                 local_path = table_def.full_path
 
                 logging.info(f"  Local path: {local_path}")
