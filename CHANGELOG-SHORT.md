@@ -47,4 +47,4 @@ Execute Python code in isolated e2b sandboxes with automatic input data transfer
 
 ---
 
-**Full changelog:** [CHANGELOG.md](https://github.com/keboola/e2b_writer_custom_python/blob/fix/keboola-api-key-integration/CHANGELOG.md)
+**Full changelog:** [CHANGELOG.md](https://github.com/keboola/e2b_writer_custom_python/blob/main/CHANGELOG.md)

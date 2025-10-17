@@ -1406,7 +1406,7 @@ async function showChangelogContent() {
   mainContainer.appendChild(changelogContainer);
 
   // Fetch changelog from GitHub
-  const currentBranch = 'fix/keboola-api-key-integration';
+  const currentBranch = 'main';
   const changelogUrl = `https://raw.githubusercontent.com/keboola/e2b_writer_custom_python/${currentBranch}/CHANGELOG-SHORT.md`;
 
   try {
