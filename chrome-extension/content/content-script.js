@@ -91,19 +91,20 @@ function createExtensionButton() {
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 12px 16px;
+      padding: 10px 16px;
       background: #ff8800;
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 15px;
       width: 100%;
       text-align: center;
       font-family: inherit;
       color: white;
-      font-weight: 600;
+      font-weight: 500;
       transition: all 0.2s;
       box-shadow: 0 2px 4px rgba(255, 136, 0, 0.2);
+      height: 40px;
     " onmouseover="this.style.background='#e67a00'; this.style.boxShadow='0 4px 8px rgba(255, 136, 0, 0.3)';" onmouseout="this.style.background='#ff8800'; this.style.boxShadow='0 2px 4px rgba(255, 136, 0, 0.2)';">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
