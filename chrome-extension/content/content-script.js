@@ -1030,6 +1030,9 @@ async function injectExtension() {
   // Hide unnecessary sections to simplify UI
   hideUnnecessarySections();
 
+  // Replace component icon with e2b logo
+  replaceComponentIcon();
+
   console.log('[e2b Extension] UI injected successfully');
 }
 
@@ -1179,6 +1182,41 @@ function hideUnnecessarySections() {
       sourceCodeLabels[0].style.cssText = 'position: absolute; left: -9999px; visibility: hidden;';
       console.log('[e2b Extension] Hidden Source Code heading');
     }
+  }
+}
+
+// Replace the component icon with e2b logo
+function replaceComponentIcon() {
+  console.log('[e2b Extension] Replacing component icon with e2b logo...');
+
+  // Find the component icon image
+  const componentIcon = document.querySelector('img.component-icon');
+
+  if (componentIcon) {
+    // Get the extension's e2b.png URL
+    const e2bLogoUrl = chrome.runtime.getURL('public/e2b.png');
+
+    // Replace the icon
+    componentIcon.src = e2bLogoUrl;
+
+    // Adjust styling for better appearance
+    componentIcon.style.padding = '8px';
+    componentIcon.style.backgroundColor = 'white';
+
+    console.log('[e2b Extension] ✓ Component icon replaced with e2b logo');
+  } else {
+    console.warn('[e2b Extension] Component icon not found, retrying...');
+    // Retry after a delay (page might still be loading)
+    setTimeout(() => {
+      const retryIcon = document.querySelector('img.component-icon');
+      if (retryIcon) {
+        const e2bLogoUrl = chrome.runtime.getURL('public/e2b.png');
+        retryIcon.src = e2bLogoUrl;
+        retryIcon.style.padding = '8px';
+        retryIcon.style.backgroundColor = 'white';
+        console.log('[e2b Extension] ✓ Component icon replaced with e2b logo (retry)');
+      }
+    }, 500);
   }
 }
 
