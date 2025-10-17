@@ -919,6 +919,47 @@ async function getKeboolaToken() {
   });
 }
 
+// Hide unnecessary UI sections to simplify the interface
+function hideUnnecessarySections() {
+  console.log('[e2b Extension] Hiding unnecessary UI sections...');
+
+  // Inject CSS to hide specific sections
+  const style = document.createElement('style');
+  style.id = 'e2b-hide-sections';
+  style.textContent = `
+    /* Hide Table Output Mapping section */
+    h3:has-text("Table Output Mapping"),
+    h3:contains("Table Output Mapping") {
+      display: none !important;
+    }
+
+    /* More robust way: hide by checking heading content */
+    h3 {
+      &:has-text("Table Output Mapping"),
+      &:has-text("File Output Mapping"),
+      &:has-text("Variables") {
+        display: none !important;
+      }
+    }
+  `;
+
+  // Find sections by heading text and hide them
+  const headings = Array.from(document.querySelectorAll('h3'));
+  headings.forEach(heading => {
+    const text = heading.textContent.trim();
+    if (text === 'Table Output Mapping' ||
+        text === 'File Output Mapping' ||
+        text === 'Variables') {
+      // Hide the entire section (the parent container)
+      const section = heading.closest('div[class*="form"], div[class*="section"], div');
+      if (section && section.parentElement) {
+        section.style.display = 'none';
+        console.log(`[e2b Extension] Hidden section: ${text}`);
+      }
+    }
+  });
+}
+
 // Main injection function
 async function injectExtension() {
   if (document.getElementById('kbc-e2b-extension-root')) {
@@ -973,6 +1014,9 @@ async function injectExtension() {
 
   // Create panel
   createExtensionPanel();
+
+  // Hide unnecessary sections to simplify UI
+  hideUnnecessarySections();
 
   console.log('[e2b Extension] UI injected successfully');
 }
