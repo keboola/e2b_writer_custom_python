@@ -285,16 +285,22 @@ def process_input_data(sandbox):
                 logging.info(f"  File size: {file_size:,} bytes")
 
                 # Read CSV file content
+                logging.debug(f"  Reading CSV content from {local_path}")
                 transfer_start = time.time()
                 with open(local_path, 'r') as f:
                     csv_content = f.read()
+
+                csv_size_mb = len(csv_content) / (1024 * 1024)
+                logging.debug(f"  Read {len(csv_content):,} characters ({csv_size_mb:.2f} MB)")
 
                 # Upload to e2b sandbox
                 remote_path = f"/tmp/{table_name}"
                 logging.info(f"  Uploading to sandbox: {remote_path}")
 
                 # Write file to sandbox
-                execution = sandbox.run_code(f"""
+                logging.debug("  Executing sandbox.run_code() to write file...")
+                try:
+                    execution = sandbox.run_code(f"""
 with open('{remote_path}', 'w') as f:
     f.write({repr(csv_content)})
 print(f"File written: {remote_path}")
@@ -304,12 +310,20 @@ import os
 size = os.path.getsize('{remote_path}')
 print(f"File size: {{size}} bytes")
 """)
+                    logging.debug("  Sandbox execution completed")
+                except Exception as sandbox_error:
+                    logging.error(f"  Sandbox execution failed: {type(sandbox_error).__name__}")
+                    logging.exception(sandbox_error, extra={"table_name": table_name, "remote_path": remote_path})
+                    raise
 
                 transfer_duration = time.time() - transfer_start
 
                 # Check output
                 stdout = ''.join(execution.logs.stdout).strip()
                 stderr = ''.join(execution.logs.stderr).strip()
+
+                logging.debug(f"  Sandbox stdout length: {len(stdout)} chars")
+                logging.debug(f"  Sandbox stderr length: {len(stderr)} chars")
 
                 if stderr:
                     logging.warning(f"  Transfer produced stderr: {stderr[:200]}")
@@ -370,29 +384,51 @@ def main():
     try:
         # Create sandbox (API key is read from E2B_API_KEY environment variable)
         logging.info("Creating e2b sandbox...")
+        logging.debug("Calling Sandbox.create()...")
 
         sandbox_start = time.time()
-        sandbox = Sandbox.create()
+        try:
+            sandbox = Sandbox.create()
+        except Exception as create_error:
+            logging.error(f"Failed to create sandbox: {type(create_error).__name__}: {str(create_error)}")
+            logging.exception(create_error, extra={"context": "sandbox_creation"})
+            raise
+
         sandbox_duration = time.time() - sandbox_start
         sandbox_id = sandbox.sandbox_id
 
         logging.info(f"✓ Sandbox created: {sandbox_id} ({format_duration(sandbox_duration)})")
+        logging.debug(f"Sandbox type: {type(sandbox).__name__}")
 
         # Run appropriate workflow based on selftest mode
         if selftest_mode:
             # Run self-tests
+            logging.info("Starting self-test mode...")
             all_passed, test_results = run_selftest(sandbox)
             if not all_passed:
+                logging.error("Self-tests failed")
                 sys.exit(1)
+            logging.info("✓ All self-tests passed")
         else:
             # Process input data
+            logging.info("Starting input data processing...")
+            logging.debug("Calling process_input_data()...")
             success = process_input_data(sandbox)
             if not success:
+                logging.error("Input data processing failed")
                 sys.exit(1)
+            logging.info("✓ Input data processing completed successfully")
 
     except Exception as e:
-        logging.error("Fatal error occurred during execution")
-        logging.exception(e, extra={"context": "main_execution", "sandbox_id": sandbox_id})
+        error_type = type(e).__name__
+        error_msg = str(e)
+        logging.error(f"Fatal error occurred during execution: {error_type}: {error_msg}")
+        logging.exception(e, extra={
+            "context": "main_execution",
+            "sandbox_id": sandbox_id,
+            "error_type": error_type,
+            "selftest_mode": selftest_mode
+        })
         sys.exit(1)
 
     finally:

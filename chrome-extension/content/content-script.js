@@ -556,12 +556,20 @@ async function initializeE2bWriter() {
     // Select "Public" radio button (if exists)
     const publicRadios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(r => {
       const label = r.parentElement?.textContent || r.nextElementSibling?.textContent || '';
-      return label.trim() === 'Public' || label.includes('Public repository');
+      return label.includes('Public') && (label.includes('None') || label.includes('repository'));
     });
 
     if (publicRadios.length > 0) {
       publicRadios[0].click();
       console.log('[e2b Extension] ✓ Public repository selected');
+    } else {
+      console.warn('[e2b Extension] Could not find Public radio button. Available radios:',
+        Array.from(document.querySelectorAll('input[type="radio"]')).map(r => ({
+          value: r.value,
+          checked: r.checked,
+          label: r.parentElement?.textContent || r.nextElementSibling?.textContent || ''
+        }))
+      );
     }
 
     // Wait for form to update
@@ -573,11 +581,17 @@ async function initializeE2bWriter() {
     // "List Files" buttons if they want to verify or change these values.
     console.log('[e2b Extension] Skipping branch/file selection (using defaults: main/main.py)');
 
-    // Wait a moment before saving
+    // Wait for form to settle
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Step 4: Click the Save button
-    console.log('[e2b Extension] Looking for Save button...');
+    // Configuration complete - now click Save button
+    showStatus('✓ Configuration ready! Clicking Save button...', 'success');
+    console.log('[e2b Extension] ✓ Configuration complete! Clicking Save button...');
+
+    // Wait a moment for the Save button to appear
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Find and click the Save button
     const saveButtons = Array.from(document.querySelectorAll('button')).filter(btn =>
       btn.textContent.trim() === 'Save' && btn.offsetParent !== null
     );
@@ -587,13 +601,11 @@ async function initializeE2bWriter() {
       saveButtons[0].click();
 
       // Wait for save to complete
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      showStatus('✓ e2b Writer initialized successfully! Python 3.13 and Git repo configured.', 'success');
-      console.log('[e2b Extension] ✓ Initialization complete!');
+      showStatus('✓ Configuration saved successfully!', 'success');
     } else {
-      showStatus('✓ Configuration set! Please click "Save" button manually to complete.', 'success');
-      console.warn('[e2b Extension] Could not find Save button, user must save manually');
+      showStatus('✓ Configuration ready! Please click "Save" button manually.', 'success');
     }
 
     initBtn.disabled = false;
@@ -1019,6 +1031,155 @@ async function injectExtension() {
   hideUnnecessarySections();
 
   console.log('[e2b Extension] UI injected successfully');
+}
+
+// Hide unnecessary UI sections to simplify the interface
+function hideUnnecessarySections() {
+  console.log('[e2b Extension] Hiding unnecessary UI sections...');
+
+  const headings = Array.from(document.querySelectorAll('h3'));
+
+  // 1. Configuration Description - hide the collapsible box
+  const configDescHeading = headings.find(h => h.textContent.trim() === 'Configuration Description');
+  if (configDescHeading) {
+    const container = configDescHeading.closest('.box-collapsible');
+    if (container) {
+      container.style.display = 'none';
+      console.log('[e2b Extension] Hidden section: Configuration Description');
+    }
+  }
+
+  // 2. Table Output Mapping - hide the .box.no-mapping container
+  const tableOutputHeading = headings.find(h => h.textContent.trim() === 'Table Output Mapping');
+  if (tableOutputHeading) {
+    const container = tableOutputHeading.closest('.box.no-mapping');
+    if (container) {
+      container.style.display = 'none';
+      console.log('[e2b Extension] Hidden section: Table Output Mapping');
+    }
+  }
+
+  // 3. File Output Mapping - hide the .box container
+  const fileOutputHeading = headings.find(h => h.textContent.trim() === 'File Output Mapping');
+  if (fileOutputHeading) {
+    const container = fileOutputHeading.closest('.box');
+    if (container) {
+      container.style.display = 'none';
+      console.log('[e2b Extension] Hidden section: File Output Mapping');
+    }
+  }
+
+  // 4. Variables - hide the .box.box-genericVariablesUI container
+  const variablesHeading = headings.find(h => h.textContent.trim() === 'Variables');
+  if (variablesHeading) {
+    const container = variablesHeading.closest('.box-genericVariablesUI');
+    if (container) {
+      container.style.display = 'none';
+      console.log('[e2b Extension] Hidden section: Variables');
+    }
+  }
+
+  // 5. Python Version & Environment - hide but keep in DOM for programmatic control
+  // Find Python version radio buttons first
+  const pythonRadios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(r => {
+    const label = r.parentElement?.textContent || '';
+    return label.includes('Python 3.') || label.includes('python');
+  });
+
+  if (pythonRadios.length > 0) {
+    // Find the form-group container
+    let container = pythonRadios[0].closest('.form-group');
+
+    // Look for label containing "Python Version"
+    if (container && !container.querySelector('.e2b-python-notice')) {
+      const hasLabel = container.querySelector('label, div, span')?.textContent?.includes('Python');
+      if (hasLabel) {
+        // Find the common parent that contains ALL radio buttons
+        // This is the div that has all 4 radio button divs as children
+        let commonParent = pythonRadios[0];
+        for (let i = 0; i < 5; i++) {
+          commonParent = commonParent.parentElement;
+          if (!commonParent) break;
+
+          // Check if this contains all radio buttons
+          const containsAll = pythonRadios.every(radio => commonParent.contains(radio));
+          if (containsAll && commonParent.children.length === pythonRadios.length) {
+            // Found the common parent - hide it
+            commonParent.style.cssText = 'position: absolute; left: -9999px; visibility: hidden;';
+            console.log('[e2b Extension] Hidden common parent of', pythonRadios.length, 'radio buttons');
+            break;
+          }
+        }
+
+        // Hide the label too if it exists
+        const label = container.querySelector('label');
+        if (label) {
+          label.style.cssText = 'position: absolute; left: -9999px; visibility: hidden;';
+        }
+
+        // Add informational message at the top
+        const notice = document.createElement('div');
+        notice.className = 'e2b-python-notice';
+        notice.style.cssText = 'padding: 15px; background: #f5f5f5; border-left: 4px solid #0066cc; margin-bottom: 20px;';
+        notice.innerHTML = '<strong>Python Environment:</strong> Managed by e2b Integration';
+        container.insertBefore(notice, container.firstChild);
+
+        console.log('[e2b Extension] Hidden (but kept in DOM) Python Version section');
+      }
+    }
+  }
+
+  // 6. User Parameters - add informational text
+  const userParamsLabel = Array.from(document.querySelectorAll('label')).find(label =>
+    label.textContent.trim() === 'User Parameters'
+  );
+  if (userParamsLabel) {
+    const formGroup = userParamsLabel.closest('.form-group');
+    if (formGroup && !formGroup.querySelector('.e2b-user-params-notice')) {
+      const notice = document.createElement('div');
+      notice.className = 'e2b-user-params-notice';
+      notice.style.cssText = 'padding: 10px; background: #e8f4f8; border-left: 4px solid #0066cc; margin-bottom: 10px; font-size: 13px;';
+      notice.innerHTML = '<strong>ℹ️ Note:</strong> These parameters are managed through the <strong>e2b Integration</strong> panel (see button in sidebar).';
+
+      // Insert after the label
+      userParamsLabel.parentElement.insertBefore(notice, userParamsLabel.nextSibling);
+      console.log('[e2b Extension] Added User Parameters notice');
+    }
+  }
+
+  // 7. Source Code & Dependencies - hide radio buttons but keep in DOM for programmatic control
+  // Find "Write your code inline" or "Get from Git repository" radio buttons
+  const sourceCodeRadios = Array.from(document.querySelectorAll('input[type="radio"]')).filter(r => {
+    const label = r.parentElement?.textContent || '';
+    return label.includes('Write your code inline') || label.includes('Get from Git repository');
+  });
+
+  if (sourceCodeRadios.length > 0) {
+    // Find the common parent that contains ALL source code radio buttons
+    let commonParent = sourceCodeRadios[0];
+    for (let i = 0; i < 5; i++) {
+      commonParent = commonParent.parentElement;
+      if (!commonParent) break;
+
+      // Check if this contains all radio buttons
+      const containsAll = sourceCodeRadios.every(radio => commonParent.contains(radio));
+      if (containsAll && commonParent.children.length === sourceCodeRadios.length) {
+        // Found the common parent - hide it
+        commonParent.style.cssText = 'position: absolute; left: -9999px; visibility: hidden;';
+        console.log('[e2b Extension] Hidden (but kept in DOM) common parent of', sourceCodeRadios.length, 'Source Code radio buttons');
+        break;
+      }
+    }
+
+    // Also hide the label/heading if it exists
+    const sourceCodeLabels = Array.from(document.querySelectorAll('label, div')).filter(el =>
+      el.textContent.includes('Source Code & Dependencies') && el.textContent.length < 100
+    );
+    if (sourceCodeLabels.length > 0) {
+      sourceCodeLabels[0].style.cssText = 'position: absolute; left: -9999px; visibility: hidden;';
+      console.log('[e2b Extension] Hidden Source Code heading');
+    }
+  }
 }
 
 // SPA navigation detection

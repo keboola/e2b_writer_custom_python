@@ -97,12 +97,20 @@ kbc-e2b-writer/
 - Checks if `e2b: true` exists in User Parameters before injecting UI
 - Injects "e2b Integration" button into Keboola action panel
 - Creates configuration modal using Shadow DOM for style isolation
-- **Initialization Feature** (lines 475-614): One-click setup that:
+- **UI Simplification** (`hideUnnecessarySections()`): Automatically hides unnecessary sections:
+  - Configuration Description (collapsible box)
+  - Table Output Mapping
+  - File Output Mapping
+  - Variables
+  - Adds informational notice above User Parameters
+  - Attempts to replace Python Version section with simple message
+  - Attempts to hide Source Code radio buttons (keep only Git settings)
+- **Initialization Feature** (lines 495-612): One-click setup that:
   - Selects Python 3.13 environment
   - Configures Git repository mode
   - Sets repo URL: `https://github.com/keboola/e2b_writer_custom_python`
-  - Sets branch to `main` and script filename to `main.py`
-  - Automatically saves configuration
+  - Sets branch to `main` and script filename to `main.py` (defaults)
+  - Automatically clicks Save button to persist configuration
 - Handles SPA navigation via `MutationObserver`
 
 **inject-helper.js** (chrome-extension/content/inject-helper.js)
@@ -149,9 +157,9 @@ Right-side action panel, after "Debug mode" button
 4. **Git settings populated:**
    - Repository URL: `https://github.com/keboola/e2b_writer_custom_python`
    - Access: Public
-   - Branch: `main`
-   - Script: `main.py`
-5. **Save button clicked** → Configuration persisted automatically
+   - Branch: `main` (default - not explicitly set)
+   - Script: `main.py` (default - not explicitly set)
+5. **Extension automatically clicks Save** → Configuration persisted
 
 ### CodeMirror Access Pattern
 
@@ -218,43 +226,52 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 
 ## Known Issues & Design Decisions
 
-1. **Conditional Injection**: Extension only injects UI when `e2b: true` exists in User Parameters
+1. **UI Simplification**: Extension automatically hides unnecessary sections to streamline the interface
+   - **Hidden sections:** Configuration Description, Table Output Mapping, File Output Mapping, Variables
+   - **Python Version section:** Radio buttons hidden off-screen (position: absolute; left: -9999px) with informational message "Python Environment: Managed by e2b Integration" shown instead
+   - **Source Code radio buttons:** Hidden off-screen to prevent switching between Git and inline code
+   - **User Parameters notice:** Blue info box added above editor explaining parameters are managed via e2b Integration panel
+   - **Key design decision:** Elements are hidden visually but kept in the DOM so the initialization function can still interact with them programmatically (e.g., clicking Python 3.13 radio button)
+   - Rationale: Reduce UI clutter, focus user attention on e2b-relevant settings, while maintaining full programmatic control
+   - Implementation: Uses `position: absolute; left: -9999px; visibility: hidden;` instead of `display: none` or innerHTML replacement (content-script.js:1069-1152)
+
+2. **Conditional Injection**: Extension only injects UI when `e2b: true` exists in User Parameters
    - Rationale: Avoid clutter for users not using e2b integration
 
-2. **Python Version**: Configured to use Python 3.13
+3. **Python Version**: Configured to use Python 3.13
    - Rationale: Latest stable Python version with improved performance
-   - Location: Initialization function (content-script.js:485-497)
+   - Location: Initialization function (content-script.js:545-547)
 
-3. **Template Parameter Always Defined**: `e2b_template` is always stored with a concrete value
+4. **Template Parameter Always Defined**: `e2b_template` is always stored with a concrete value
    - When "Default" is selected: stores `"code-interpreter"`
    - When custom template is entered: stores the custom template ID
    - Rationale: User Parameters become environment variables for Python scripts using e2b SDK
 
-4. **Branch Field Detection**: Uses multiple fallback strategies (content-script.js:551-602)
-   - Checks label text, placeholder, name attribute
-   - Falls back to visible text inputs if specific match not found
-   - Logs detailed debug information for troubleshooting
+5. **Branch Field Detection**: Simplified to use defaults
+   - Branch and Script Filename default to "main" and "main.py"
+   - Users can manually click "List Branches" / "List Files" if needed
+   - Rationale: Avoided complex DOM manipulation with React Select components
 
-5. **CodeMirror Detection**: Helper script finds editor by checking if content includes `"debug"` or `"e2b"`
+6. **CodeMirror Detection**: Helper script finds editor by checking if content includes `"debug"` or `"e2b"`
    - Limitation: May fail if User Parameters is completely empty
 
-6. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
+7. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
    - Trade-off: Some performance overhead, but reliable detection
 
-7. **No Build System**: Pure vanilla JS, no bundler
+8. **No Build System**: Pure vanilla JS, no bundler
    - Benefit: Simple deployment, no build step
    - Trade-off: No TypeScript, no tree-shaking
 
-8. **e2b SDK Usage**: Uses synchronous `Sandbox.create()` API
+9. **e2b SDK Usage**: Uses synchronous `Sandbox.create()` API
    - Execution output accessed via `execution.logs.stdout`
    - Sandbox cleanup via `sandbox.kill()`
 
-9. **Dual-Mode API Key Loading** (main.py:12-59): Supports both Keboola and local testing
-   - **Keboola mode**: Reads `#e2b_api_key` from user parameters via `CommonInterface`
-   - **Local mode**: Falls back to `E2B_API_KEY` environment variable
-   - Automatic detection with clear logging of active mode
+10. **Dual-Mode API Key Loading** (main.py:12-59): Supports both Keboola and local testing
+    - **Keboola mode**: Reads `#e2b_api_key` from user parameters via `CommonInterface`
+    - **Local mode**: Falls back to `E2B_API_KEY` environment variable
+    - Automatic detection with clear logging of active mode
 
-10. **GitHub-Based Deployment**: Keboola loads code from Git repository (not local files)
+11. **GitHub-Based Deployment**: Keboola loads code from Git repository (not local files)
    - All changes to `main.py` MUST be committed and pushed to GitHub
    - Keboola clones from the repository URL in the configuration
    - Test locally first, then commit/push, then test in Keboola
