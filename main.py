@@ -155,13 +155,195 @@ def run_test(test_name, test_num, total_tests, sandbox, code, description=None):
         logging.exception(e, extra={"test_name": test_name, "duration": format_duration(duration)})
         return False, duration, None
 
+def run_selftest(sandbox):
+    """
+    Run self-tests to verify e2b sandbox functionality
+
+    Returns:
+        tuple: (all_passed: bool, test_results: list)
+    """
+    logging.info("Running self-tests...")
+
+    test_results = []
+    total_tests = 5  # Increased to 5 to include error logging demo
+
+    # Test 1: Simple Python code
+    success, duration, output = run_test(
+        "Simple Python",
+        1, total_tests,
+        sandbox,
+        "print('Hello from e2b sandbox!')",
+        "Testing basic Python code execution"
+    )
+    test_results.append(("Simple Python", success, duration))
+
+    # Test 2: Package installation and usage
+    success, duration, output = run_test(
+        "Pandas Usage",
+        2, total_tests,
+        sandbox,
+        """
+import pandas as pd
+df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [25, 30]})
+print(df)
+print(f"\\nDataFrame shape: {df.shape}")
+""",
+        "Installing pandas and creating a DataFrame"
+    )
+    test_results.append(("Pandas Usage", success, duration))
+
+    # Test 3: File operations
+    success, duration, output = run_test(
+        "File Operations",
+        3, total_tests,
+        sandbox,
+        """
+with open('/tmp/test.txt', 'w') as f:
+    f.write('Hello from e2b file system!')
+
+with open('/tmp/test.txt', 'r') as f:
+    content = f.read()
+    print(f"File content: {content}")
+""",
+        "Creating and reading files in sandbox"
+    )
+    test_results.append(("File Operations", success, duration))
+
+    # Test 4: Directory listing
+    success, duration, output = run_test(
+        "Directory Listing",
+        4, total_tests,
+        sandbox,
+        """
+import os
+files = os.listdir('/tmp')
+print(f"Files in /tmp: {files}")
+""",
+        "Listing files in sandbox file system"
+    )
+    test_results.append(("Directory Listing", success, duration))
+
+    # Test 5: Demo error logging
+    logging.info(f"Test 5/{total_tests}: Error Logging Demo")
+    logging.warning("This is a demo WARNING message")
+    logging.error("This is a demo ERROR message (not a real error)")
+    test_results.append(("Error Logging Demo", True, 0.0))
+    logging.info(f"✓ Test 5/{total_tests}: Error Logging Demo (0ms)")
+
+    # Print summary
+    passed = sum(1 for _, success, _ in test_results if success)
+    failed = len(test_results) - passed
+    total_test_time = sum(duration for _, _, duration in test_results)
+
+    if failed > 0:
+        logging.error(f"Tests completed: {passed}/{total_tests} passed, {failed} failed (total: {format_duration(total_test_time)})")
+        return False, test_results
+    else:
+        logging.info(f"✓ All tests passed: {total_tests}/{total_tests} (total: {format_duration(total_test_time)})")
+        return True, test_results
+
+
+def process_input_data(sandbox):
+    """
+    Process input data from Keboola Input Mapping and transfer to e2b sandbox
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        from keboola.component import CommonInterface
+
+        ci = CommonInterface()
+        input_tables = ci.configuration.tables_input_mapping
+
+        if not input_tables:
+            logging.info("No input tables configured in Input Mapping")
+            return True
+
+        logging.info(f"Found {len(input_tables)} input table(s) in Input Mapping")
+
+        # Process each input table
+        for idx, table_config in enumerate(input_tables, 1):
+            table_name = table_config.get('destination', 'unknown')
+            logging.info(f"Processing table {idx}/{len(input_tables)}: {table_name}")
+
+            try:
+                # Get table definition (includes full_path)
+                table_def = ci.get_input_table_definition_by_name(table_name)
+                local_path = table_def.full_path
+
+                logging.info(f"  Local path: {local_path}")
+                logging.info(f"  Columns: {', '.join(table_def.columns) if table_def.columns else 'N/A'}")
+
+                # Check if file exists
+                if not os.path.exists(local_path):
+                    logging.error(f"  File not found: {local_path}")
+                    return False
+
+                # Get file size
+                file_size = os.path.getsize(local_path)
+                logging.info(f"  File size: {file_size:,} bytes")
+
+                # Read CSV file content
+                transfer_start = time.time()
+                with open(local_path, 'r') as f:
+                    csv_content = f.read()
+
+                # Upload to e2b sandbox
+                remote_path = f"/tmp/{table_name}"
+                logging.info(f"  Uploading to sandbox: {remote_path}")
+
+                # Write file to sandbox
+                execution = sandbox.run_code(f"""
+with open('{remote_path}', 'w') as f:
+    f.write({repr(csv_content)})
+print(f"File written: {remote_path}")
+
+# Verify file
+import os
+size = os.path.getsize('{remote_path}')
+print(f"File size: {{size}} bytes")
+""")
+
+                transfer_duration = time.time() - transfer_start
+
+                # Check output
+                stdout = ''.join(execution.logs.stdout).strip()
+                stderr = ''.join(execution.logs.stderr).strip()
+
+                if stderr:
+                    logging.warning(f"  Transfer produced stderr: {stderr[:200]}")
+
+                if stdout:
+                    logging.info(f"  ✓ Transfer complete ({format_duration(transfer_duration)})")
+                    if logging.getLogger().level == logging.DEBUG:
+                        for line in stdout.split('\n'):
+                            logging.debug(f"    {line}")
+                else:
+                    logging.warning(f"  Transfer completed but no output received ({format_duration(transfer_duration)})")
+
+            except Exception as e:
+                logging.error(f"  Failed to process table: {table_name}")
+                logging.exception(e, extra={"table_name": table_name, "table_index": idx})
+                return False
+
+        logging.info(f"✓ All {len(input_tables)} table(s) transferred to sandbox")
+        return True
+
+    except ImportError:
+        # Not in Keboola mode - can't access input mapping
+        logging.warning("CommonInterface not available - skipping input data processing")
+        return True
+    except Exception as e:
+        logging.error("Failed to process input data")
+        logging.exception(e, extra={"context": "process_input_data"})
+        return False
+
+
 def main():
     """Main execution function"""
 
     script_start = time.time()
-
-    # Track test results
-    test_results = []
 
     # Get API key from Keboola user parameters or environment variable
     api_key, mode, log_level = get_api_key_and_init_logging()
@@ -169,6 +351,18 @@ def main():
     # IMPORTANT: e2b SDK reads API key from E2B_API_KEY environment variable
     # Set it here regardless of where we got it from (Keboola params or env var)
     os.environ['E2B_API_KEY'] = api_key
+
+    # Check selftest mode
+    selftest_mode = False
+    if mode == 'keboola':
+        try:
+            from keboola.component import CommonInterface
+            ci = CommonInterface()
+            selftest_mode = ci.configuration.parameters.get('selftest', False)
+            logging.info(f"Selftest mode: {selftest_mode}")
+        except Exception as e:
+            logging.warning("Could not read selftest parameter, defaulting to False")
+            logging.debug(str(e))
 
     sandbox = None
     sandbox_id = None
@@ -184,75 +378,17 @@ def main():
 
         logging.info(f"✓ Sandbox created: {sandbox_id} ({format_duration(sandbox_duration)})")
 
-        # Run tests
-        total_tests = 4
-
-        # Test 1: Simple Python code
-        success, duration, output = run_test(
-            "Simple Python",
-            1, total_tests,
-            sandbox,
-            "print('Hello from e2b sandbox!')",
-            "Testing basic Python code execution"
-        )
-        test_results.append(("Simple Python", success, duration))
-
-        # Test 2: Package installation and usage
-        success, duration, output = run_test(
-            "Pandas Usage",
-            2, total_tests,
-            sandbox,
-            """
-import pandas as pd
-df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [25, 30]})
-print(df)
-print(f"\\nDataFrame shape: {df.shape}")
-""",
-            "Installing pandas and creating a DataFrame"
-        )
-        test_results.append(("Pandas Usage", success, duration))
-
-        # Test 3: File operations
-        success, duration, output = run_test(
-            "File Operations",
-            3, total_tests,
-            sandbox,
-            """
-with open('/tmp/test.txt', 'w') as f:
-    f.write('Hello from e2b file system!')
-
-with open('/tmp/test.txt', 'r') as f:
-    content = f.read()
-    print(f"File content: {content}")
-""",
-            "Creating and reading files in sandbox"
-        )
-        test_results.append(("File Operations", success, duration))
-
-        # Test 4: Directory listing
-        success, duration, output = run_test(
-            "Directory Listing",
-            4, total_tests,
-            sandbox,
-            """
-import os
-files = os.listdir('/tmp')
-print(f"Files in /tmp: {files}")
-""",
-            "Listing files in sandbox file system"
-        )
-        test_results.append(("Directory Listing", success, duration))
-
-        # Print summary
-        passed = sum(1 for _, success, _ in test_results if success)
-        failed = len(test_results) - passed
-        total_test_time = sum(duration for _, _, duration in test_results)
-
-        if failed > 0:
-            logging.error(f"Tests completed: {passed}/{total_tests} passed, {failed} failed (total: {format_duration(total_test_time)})")
-            sys.exit(1)
+        # Run appropriate workflow based on selftest mode
+        if selftest_mode:
+            # Run self-tests
+            all_passed, test_results = run_selftest(sandbox)
+            if not all_passed:
+                sys.exit(1)
         else:
-            logging.info(f"✓ All tests passed: {total_tests}/{total_tests} (total: {format_duration(total_test_time)})")
+            # Process input data
+            success = process_input_data(sandbox)
+            if not success:
+                sys.exit(1)
 
     except Exception as e:
         logging.error("Fatal error occurred during execution")
