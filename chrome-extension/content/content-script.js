@@ -1036,6 +1036,9 @@ async function injectExtension() {
   // Replace component icon with e2b logo
   replaceComponentIcon();
 
+  // Inject e2b tab
+  injectE2bTab();
+
   console.log('[e2b Extension] UI injected successfully');
 }
 
@@ -1240,6 +1243,220 @@ function replaceComponentIcon() {
       }
     }, 500);
   }
+}
+
+// Inject "e2b in Keboola" tab next to "Versions" tab
+function injectE2bTab() {
+  console.log('[e2b Extension] Injecting e2b tab...');
+
+  // Find the tab navigation (ul.nav.nav-tabs)
+  const tabNav = document.querySelector('ul.nav.nav-tabs[role="navigation"]');
+  if (!tabNav) {
+    console.warn('[e2b Extension] Tab navigation not found, retrying...');
+    setTimeout(injectE2bTab, 1000);
+    return;
+  }
+
+  // Check if tab already exists
+  if (document.getElementById('e2b-changelog-tab')) {
+    console.log('[e2b Extension] e2b tab already exists, skipping injection');
+    return;
+  }
+
+  // Extract the base URL from current location
+  const urlParts = location.pathname.split('/');
+  const configId = urlParts[urlParts.length - 1];
+  const baseUrl = location.pathname.replace(/\/(notifications|versions)$/, '');
+  const e2bUrl = `${baseUrl}/e2b-changelog`;
+
+  // Create the new tab
+  const e2bTab = document.createElement('li');
+  e2bTab.role = 'presentation';
+  e2bTab.id = 'e2b-changelog-tab';
+
+  const e2bLink = document.createElement('a');
+  e2bLink.role = 'tab';
+  e2bLink.href = e2bUrl;
+  e2bLink.style.cssText = 'color: #ff8800; font-weight: 600;';  // e2b brand orange
+
+  // Create icon (using a custom icon for e2b)
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.setAttribute('focusable', 'false');
+  icon.setAttribute('class', 'svg-inline--fa icon-addon-right');
+  icon.setAttribute('role', 'img');
+  icon.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  icon.setAttribute('viewBox', '0 0 512 512');
+  icon.setAttribute('width', '14');
+  icon.setAttribute('height', '14');
+  icon.style.cssText = 'margin-right: 8px; vertical-align: -2px;';
+
+  // Use book icon for documentation/changelog
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('fill', 'currentColor');
+  path.setAttribute('d', 'M96 0C43 0 0 43 0 96V416c0 53 43 96 96 96H384h32c17.7 0 32-14.3 32-32s-14.3-32-32-32V384c17.7 0 32-14.3 32-32V32c0-17.7-14.3-32-32-32H384 96zm0 384H352v64H96c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm16 48H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16s7.2-16 16-16z');
+
+  icon.appendChild(path);
+  e2bLink.appendChild(icon);
+  e2bLink.appendChild(document.createTextNode('e2b in Keboola'));
+
+  e2bTab.appendChild(e2bLink);
+
+  // Add click handler to show changelog content
+  e2bLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showChangelogContent();
+
+    // Update URL without reload
+    history.pushState(null, '', e2bUrl);
+
+    // Update tab states
+    document.querySelectorAll('[role="tab"]').forEach(tab => {
+      tab.classList.remove('active');
+      tab.removeAttribute('aria-current');
+      if (tab.parentElement) {
+        tab.parentElement.classList.remove('active');
+      }
+    });
+    e2bLink.classList.add('active');
+    e2bLink.setAttribute('aria-current', 'page');
+    e2bTab.classList.add('active');
+  });
+
+  // Insert after the "Versions" tab
+  tabNav.appendChild(e2bTab);
+
+  // Check if we should show changelog on page load
+  if (location.pathname.endsWith('/e2b-changelog')) {
+    showChangelogContent();
+    e2bLink.classList.add('active');
+    e2bLink.setAttribute('aria-current', 'page');
+    e2bTab.classList.add('active');
+  }
+
+  // Add listeners to other tabs to restore content
+  const otherTabs = tabNav.querySelectorAll('a[role="tab"]');
+  otherTabs.forEach(tab => {
+    if (tab === e2bLink) return; // Skip our tab
+
+    tab.addEventListener('click', () => {
+      // Hide changelog content when switching to other tabs
+      const changelogContainer = document.getElementById('e2b-changelog-container');
+      if (changelogContainer) {
+        changelogContainer.style.display = 'none';
+      }
+
+      // Show original content
+      const mainContent = document.querySelector('div[class*="container"]');
+      if (mainContent) {
+        const existingContent = mainContent.querySelectorAll(':scope > div:not(#e2b-changelog-container)');
+        existingContent.forEach(el => el.style.display = '');
+      }
+    });
+  });
+
+  console.log('[e2b Extension] ✓ e2b tab injected successfully');
+}
+
+// Show changelog content in the main area
+async function showChangelogContent() {
+  console.log('[e2b Extension] Showing changelog content...');
+
+  // Find the main content area (the area below tabs)
+  const mainContent = document.querySelector('div[class*="container"]');
+  if (!mainContent) {
+    console.warn('[e2b Extension] Main content area not found');
+    return;
+  }
+
+  // Hide all existing tab content
+  const existingContent = mainContent.querySelectorAll(':scope > div');
+  existingContent.forEach(el => el.style.display = 'none');
+
+  // Check if changelog container already exists
+  let changelogContainer = document.getElementById('e2b-changelog-container');
+  if (changelogContainer) {
+    changelogContainer.style.display = 'block';
+    return;
+  }
+
+  // Create new container for changelog
+  changelogContainer = document.createElement('div');
+  changelogContainer.id = 'e2b-changelog-container';
+  changelogContainer.style.cssText = 'padding: 20px; max-width: 900px; margin: 0 auto;';
+
+  // Show loading state
+  changelogContainer.innerHTML = '<p style="text-align: center; color: #666;">Loading changelog...</p>';
+  mainContent.appendChild(changelogContainer);
+
+  // Fetch changelog from GitHub
+  const currentBranch = 'fix/keboola-api-key-integration';
+  const changelogUrl = `https://raw.githubusercontent.com/keboola/e2b_writer_custom_python/${currentBranch}/CHANGELOG-SHORT.md`;
+
+  try {
+    const response = await fetch(changelogUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch: ${response.status}`);
+    }
+
+    const markdown = await response.text();
+
+    // Convert markdown to HTML (basic conversion)
+    const html = markdownToHtml(markdown);
+
+    changelogContainer.innerHTML = html;
+    console.log('[e2b Extension] ✓ Changelog content displayed');
+  } catch (error) {
+    console.error('[e2b Extension] Failed to load changelog:', error);
+    changelogContainer.innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <h3 style="color: #d32f2f;">Failed to load changelog</h3>
+        <p style="color: #666; margin: 10px 0;">Could not fetch CHANGELOG-SHORT.md from GitHub.</p>
+        <a href="https://github.com/keboola/e2b_writer_custom_python/blob/${currentBranch}/CHANGELOG-SHORT.md"
+           target="_blank"
+           rel="noopener noreferrer"
+           style="color: #ff8800; text-decoration: none; font-weight: 600;">
+          View on GitHub →
+        </a>
+      </div>
+    `;
+  }
+}
+
+// Simple markdown to HTML converter (basic implementation)
+function markdownToHtml(markdown) {
+  let html = markdown
+    // Headers
+    .replace(/^### (.*$)/gim, '<h3 style="color: #333; margin: 20px 0 10px 0;">$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2 style="color: #ff8800; margin: 30px 0 15px 0; border-bottom: 2px solid #ff8800; padding-bottom: 5px;">$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1 style="color: #333; margin: 0 0 20px 0;">$1</h1>')
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Code
+    .replace(/`([^`]+)`/g, '<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">$1</code>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: #ff8800; text-decoration: none;">$1</a>')
+    // Horizontal rule
+    .replace(/^---$/gim, '<hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />')
+    // Unordered list items
+    .replace(/^- (.*)$/gim, '<li style="margin: 5px 0;">$1</li>')
+    // Checkmarks
+    .replace(/✅/g, '<span style="color: #4caf50;">✅</span>');
+
+  // Wrap list items in ul tags
+  html = html.replace(/(<li[^>]*>.*<\/li>\s*)+/gs, '<ul style="margin: 10px 0; padding-left: 25px;">$&</ul>');
+
+  // Wrap paragraphs
+  html = html.split('\n\n').map(para => {
+    if (para.trim() && !para.startsWith('<')) {
+      return `<p style="margin: 10px 0; line-height: 1.6; color: #333;">${para}</p>`;
+    }
+    return para;
+  }).join('\n');
+
+  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">${html}</div>`;
 }
 
 // SPA navigation detection
