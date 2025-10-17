@@ -273,20 +273,23 @@ def process_input_data(sandbox):
             logging.warning(f"Input tables directory does not exist: {os.path.join(data_dir, 'in', 'tables')}")
 
         # Process each input table
-        for idx, table_config in enumerate(input_tables, 1):
-            table_name = table_config.get('destination', 'unknown')
+        for idx, table in enumerate(input_tables, 1):
+            # Note: table is an object with properties, not a dict
+            table_name = table.destination
             logging.info(f"Processing table {idx}/{len(input_tables)}: {table_name}")
-            logging.debug(f"  Full table_config: {table_config}")
+            logging.debug(f"  Source: {table.source if hasattr(table, 'source') else 'N/A'}")
+            logging.debug(f"  Destination: {table.destination}")
 
             try:
                 # Get table definition (includes full_path)
                 logging.debug(f"  Calling get_input_table_definition_by_name('{table_name}')")
                 table_def = ci.get_input_table_definition_by_name(table_name)
-                logging.debug(f"  Table definition retrieved: {table_def}")
+                logging.debug(f"  Full path: {table_def.full_path}")
+                logging.debug(f"  Columns: {table_def.column_names if hasattr(table_def, 'column_names') else table_def.columns}")
                 local_path = table_def.full_path
 
                 logging.info(f"  Local path: {local_path}")
-                logging.info(f"  Columns: {', '.join(table_def.columns) if table_def.columns else 'N/A'}")
+                logging.info(f"  Columns: {', '.join(table_def.column_names if hasattr(table_def, 'column_names') else table_def.columns)}")
 
                 # Check if file exists
                 if not os.path.exists(local_path):
