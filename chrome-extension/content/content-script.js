@@ -388,6 +388,17 @@ function createExtensionPanel() {
             />
             <div class="hint">Default: 1800 (30 minutes)</div>
           </div>
+
+          <div class="form-group">
+            <label for="log-level">Log Level</label>
+            <select id="log-level">
+              <option value="ERROR">ERROR - Only errors</option>
+              <option value="WARNING">WARNING - Warnings + errors</option>
+              <option value="INFO" selected>INFO - Normal (recommended)</option>
+              <option value="DEBUG">DEBUG - Verbose (detailed output)</option>
+            </select>
+            <div class="hint">Controls logging verbosity (default: INFO)</div>
+          </div>
         </div>
 
         <div class="section">
@@ -731,6 +742,16 @@ async function loadCurrentConfiguration() {
       console.log('[e2b Extension] No timeout found in params');
     }
 
+    // Load log level
+    if (params.log_level) {
+      const logLevelField = shadow.getElementById('log-level');
+      logLevelField.value = params.log_level.toUpperCase();
+      console.log('[e2b Extension] Set log level to:', params.log_level);
+      hasExistingConfig = true;
+    } else {
+      console.log('[e2b Extension] No log level found in params, using default (INFO)');
+    }
+
     if (hasExistingConfig) {
       showStatus('✓ Loaded existing e2b configuration', 'success');
       setTimeout(() => {
@@ -777,6 +798,7 @@ async function saveConfiguration() {
   }
 
   const timeout = parseInt(shadow.getElementById('e2b-timeout').value);
+  const logLevel = shadow.getElementById('log-level').value;
 
   showStatus('Updating User Parameters...', 'info');
   const saveBtn = shadow.getElementById('save-config-btn');
@@ -810,7 +832,8 @@ async function saveConfiguration() {
       ...currentParams,
       'e2b': true,  // Mark as e2b-enabled
       'e2b_template': template,  // Always set template (default or custom)
-      'e2b_timeout': timeout
+      'e2b_timeout': timeout,
+      'log_level': logLevel  // Log level configuration
     };
 
     // Only update API key if a new one was provided
@@ -818,7 +841,7 @@ async function saveConfiguration() {
       updatedParams['#e2b_api_key'] = apiKey;
     }
 
-    console.log('[e2b Extension] Updating e2b configuration:', { template, timeout, hasApiKey: !!apiKey });
+    console.log('[e2b Extension] Updating e2b configuration:', { template, timeout, logLevel, hasApiKey: !!apiKey });
 
     // Update the editor (CodeMirror 5 automatically marks as dirty)
     await userParamsEditor.setValue(JSON.stringify(updatedParams, null, 2));

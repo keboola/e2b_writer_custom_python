@@ -21,8 +21,10 @@ def get_api_key_and_init_logging():
     2. Environment variable (E2B_API_KEY) - for local testing
 
     Returns:
-        tuple: (api_key, mode) where mode is 'keboola' or 'local'
+        tuple: (api_key, mode, log_level) where mode is 'keboola' or 'local'
     """
+    log_level = 'INFO'  # default
+
     # Try Keboola mode first
     try:
         from keboola.component import CommonInterface
@@ -30,13 +32,28 @@ def get_api_key_and_init_logging():
         # Initialize CommonInterface - this sets up rich logging
         ci = CommonInterface()
 
-        # Now logging is properly configured for Keboola
-        logging.info("=" * 60)
-        logging.info("Initializing e2b Writer in Keboola mode")
-        logging.info("=" * 60)
-
         parameters = ci.configuration.parameters
-        logging.debug(f"Available parameter keys: {list(parameters.keys())}")
+
+        # Get log level from parameters (default: INFO)
+        log_level = parameters.get('log_level', 'INFO').upper()
+
+        # Configure logging level
+        level_map = {
+            'DEBUG': logging.DEBUG,
+            'INFO': logging.INFO,
+            'WARNING': logging.WARNING,
+            'ERROR': logging.ERROR
+        }
+        logging.getLogger().setLevel(level_map.get(log_level, logging.INFO))
+
+        # Suppress noisy e2b SDK logs unless DEBUG
+        if log_level != 'DEBUG':
+            logging.getLogger('httpx').setLevel(logging.WARNING)
+            logging.getLogger('httpcore').setLevel(logging.WARNING)
+            logging.getLogger('e2b').setLevel(logging.WARNING)
+            logging.getLogger('e2b_code_interpreter').setLevel(logging.WARNING)
+
+        logging.info(f"e2b Writer starting (mode: Keboola, log_level: {log_level})")
 
         # Try different possible keys for the API key
         possible_keys = ['#e2b_api_key', 'e2b_api_key']
@@ -46,20 +63,14 @@ def get_api_key_and_init_logging():
                 api_key = parameters[key]
 
                 if api_key and api_key.strip():
-                    key_preview = f"{api_key[:8]}..." if len(api_key) > 8 else "***"
-                    logging.info(f"✓ Found e2b API key in parameter: {key}")
-                    logging.info(f"  API key preview: {key_preview}")
-                    logging.info(f"  API key length: {len(api_key)} characters")
-                    return api_key, 'keboola'
+                    logging.debug(f"Found e2b API key in parameter: {key}")
+                    return api_key, 'keboola', log_level
                 else:
-                    logging.warning(f"⚠ Parameter '{key}' found but value is empty")
+                    logging.warning(f"Parameter '{key}' found but value is empty")
 
         # If we got here, CommonInterface loaded but no API key found
-        logging.error("=" * 60)
-        logging.error("❌ e2b API key not found in user parameters")
-        logging.error(f"  Checked keys: {possible_keys}")
-        logging.error(f"  Available parameters: {list(parameters.keys())}")
-        logging.error("=" * 60)
+        logging.error("e2b API key not found in user parameters")
+        logging.error(f"Checked keys: {possible_keys}, Available: {list(parameters.keys())}")
         sys.exit(1)
 
     except ImportError:
@@ -69,31 +80,28 @@ def get_api_key_and_init_logging():
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
-        logging.info("=" * 60)
-        logging.info("Initializing e2b Writer in local testing mode")
-        logging.info("=" * 60)
+        # Suppress noisy e2b SDK logs in local mode too
+        logging.getLogger('httpx').setLevel(logging.WARNING)
+        logging.getLogger('httpcore').setLevel(logging.WARNING)
+        logging.getLogger('e2b').setLevel(logging.WARNING)
+        logging.getLogger('e2b_code_interpreter').setLevel(logging.WARNING)
+
+        logging.info("e2b Writer starting (mode: local, log_level: INFO)")
         pass
     except Exception as e:
-        logging.error("=" * 60)
-        logging.error("❌ Error loading Keboola configuration")
-        logging.exception(f"  Exception: {str(e)}")
-        logging.error("=" * 60)
+        logging.error("Error loading Keboola configuration")
+        logging.exception(e, extra={"context": "initialization"})
         sys.exit(2)
 
     # Fall back to environment variable (local testing mode)
     api_key = os.environ.get('E2B_API_KEY')
 
     if not api_key:
-        logging.error("=" * 60)
-        logging.error("❌ E2B_API_KEY environment variable is not set")
-        logging.error("  For local testing: export E2B_API_KEY='your-api-key-here'")
-        logging.error("=" * 60)
+        logging.error("E2B_API_KEY environment variable is not set")
         sys.exit(1)
 
-    key_preview = f"{api_key[:8]}..." if len(api_key) > 8 else "***"
-    logging.info(f"✓ Using E2B_API_KEY from environment variable")
-    logging.info(f"  API key preview: {key_preview}")
-    return api_key, 'local'
+    logging.debug(f"Using E2B_API_KEY from environment variable")
+    return api_key, 'local', log_level
 
 def format_duration(seconds):
     """Format duration in a human-readable way"""
@@ -113,12 +121,9 @@ def run_test(test_name, test_num, total_tests, sandbox, code, description=None):
     Returns:
         tuple: (success: bool, duration: float, output: str)
     """
-    logging.info("")
-    logging.info("-" * 60)
-    logging.info(f"Test {test_num}/{total_tests}: {test_name}")
+    logging.debug(f"Test {test_num}/{total_tests}: {test_name}")
     if description:
-        logging.info(f"  {description}")
-    logging.info("-" * 60)
+        logging.debug(f"  {description}")
 
     start_time = time.time()
 
@@ -130,25 +135,23 @@ def run_test(test_name, test_num, total_tests, sandbox, code, description=None):
         stderr = ''.join(execution.logs.stderr).strip()
 
         if stderr:
-            logging.warning(f"⚠ Test produced stderr output:")
-            for line in stderr.split('\n'):
-                logging.warning(f"  {line}")
+            logging.warning(f"Test {test_num} produced stderr: {stderr[:100]}")
 
         if stdout:
-            logging.info("✓ Test completed successfully")
-            logging.info(f"  Duration: {format_duration(duration)}")
-            logging.info(f"  Output:")
-            for line in stdout.split('\n'):
-                logging.info(f"    {line}")
+            logging.info(f"✓ Test {test_num}/{total_tests}: {test_name} ({format_duration(duration)})")
+            if logging.getLogger().level == logging.DEBUG:
+                for line in stdout.split('\n')[:5]:  # Limit output lines
+                    logging.debug(f"  {line}")
+                if len(stdout.split('\n')) > 5:
+                    logging.debug(f"  ... ({len(stdout.split('\n')) - 5} more lines)")
         else:
-            logging.info("✓ Test completed (no output)")
-            logging.info(f"  Duration: {format_duration(duration)}")
+            logging.info(f"✓ Test {test_num}/{total_tests}: {test_name} ({format_duration(duration)}, no output)")
 
         return True, duration, stdout
 
     except Exception as e:
         duration = time.time() - start_time
-        logging.error(f"❌ Test failed after {format_duration(duration)}")
+        logging.error(f"❌ Test {test_num}/{total_tests} failed: {test_name} ({format_duration(duration)})")
         logging.exception(e, extra={"test_name": test_name, "duration": format_duration(duration)})
         return False, duration, None
 
@@ -161,43 +164,32 @@ def main():
     test_results = []
 
     # Get API key from Keboola user parameters or environment variable
-    api_key, mode = get_api_key_and_init_logging()
-
-    logging.info("")
-    logging.info("Configuration Summary:")
-    logging.info(f"  Mode: {mode}")
-    logging.info(f"  Timestamp: {datetime.now().isoformat()}")
-    logging.info("")
+    api_key, mode, log_level = get_api_key_and_init_logging()
 
     # IMPORTANT: e2b SDK reads API key from E2B_API_KEY environment variable
     # Set it here regardless of where we got it from (Keboola params or env var)
     os.environ['E2B_API_KEY'] = api_key
-    logging.info("✓ E2B_API_KEY environment variable set for SDK")
 
     sandbox = None
     sandbox_id = None
 
     try:
         # Create sandbox (API key is read from E2B_API_KEY environment variable)
-        logging.info("")
-        logging.info("=" * 60)
         logging.info("Creating e2b sandbox...")
-        logging.info("=" * 60)
 
         sandbox_start = time.time()
         sandbox = Sandbox.create()
         sandbox_duration = time.time() - sandbox_start
         sandbox_id = sandbox.sandbox_id
 
-        logging.info(f"✓ Sandbox created successfully in {format_duration(sandbox_duration)}")
-        logging.info(f"  Sandbox ID: {sandbox_id}")
+        logging.info(f"✓ Sandbox created: {sandbox_id} ({format_duration(sandbox_duration)})")
 
         # Run tests
         total_tests = 4
 
         # Test 1: Simple Python code
         success, duration, output = run_test(
-            "Simple Python Execution",
+            "Simple Python",
             1, total_tests,
             sandbox,
             "print('Hello from e2b sandbox!')",
@@ -207,7 +199,7 @@ def main():
 
         # Test 2: Package installation and usage
         success, duration, output = run_test(
-            "Package Installation (pandas)",
+            "Pandas Usage",
             2, total_tests,
             sandbox,
             """
@@ -222,7 +214,7 @@ print(f"\\nDataFrame shape: {df.shape}")
 
         # Test 3: File operations
         success, duration, output = run_test(
-            "File System Operations",
+            "File Operations",
             3, total_tests,
             sandbox,
             """
@@ -252,74 +244,39 @@ print(f"Files in /tmp: {files}")
         test_results.append(("Directory Listing", success, duration))
 
         # Print summary
-        logging.info("")
-        logging.info("=" * 60)
-        logging.info("TEST SUMMARY")
-        logging.info("=" * 60)
-
         passed = sum(1 for _, success, _ in test_results if success)
         failed = len(test_results) - passed
         total_test_time = sum(duration for _, _, duration in test_results)
 
-        logging.info(f"Total tests: {len(test_results)}")
-        logging.info(f"  Passed: {passed}")
-        logging.info(f"  Failed: {failed}")
-        logging.info(f"  Total test time: {format_duration(total_test_time)}")
-        logging.info("")
-
-        logging.info("Individual test results:")
-        for name, success, duration in test_results:
-            status = "✓ PASS" if success else "❌ FAIL"
-            logging.info(f"  {status} - {name}: {format_duration(duration)}")
-
         if failed > 0:
-            logging.error("")
-            logging.error(f"❌ {failed} test(s) failed!")
-            logging.error("=" * 60)
+            logging.error(f"Tests completed: {passed}/{total_tests} passed, {failed} failed (total: {format_duration(total_test_time)})")
             sys.exit(1)
         else:
-            logging.info("")
-            logging.info("✓ All tests passed!")
-            logging.info("=" * 60)
+            logging.info(f"✓ All tests passed: {total_tests}/{total_tests} (total: {format_duration(total_test_time)})")
 
     except Exception as e:
-        logging.error("")
-        logging.error("=" * 60)
-        logging.error("❌ Fatal error occurred")
-        logging.error("=" * 60)
+        logging.error("Fatal error occurred during execution")
         logging.exception(e, extra={"context": "main_execution", "sandbox_id": sandbox_id})
-        logging.error("")
         sys.exit(1)
 
     finally:
         # Clean up sandbox
         if sandbox:
-            logging.info("")
-            logging.info("-" * 60)
-            logging.info("Cleaning up sandbox...")
-            logging.info("-" * 60)
+            logging.debug("Cleaning up sandbox...")
 
             cleanup_start = time.time()
             try:
                 sandbox.kill()
                 cleanup_duration = time.time() - cleanup_start
-                logging.info(f"✓ Sandbox terminated in {format_duration(cleanup_duration)}")
-                if sandbox_id:
-                    logging.info(f"  Sandbox ID: {sandbox_id}")
+                logging.info(f"✓ Sandbox terminated ({format_duration(cleanup_duration)})")
             except Exception as e:
                 cleanup_duration = time.time() - cleanup_start
-                logging.warning(f"⚠ Error during cleanup (after {format_duration(cleanup_duration)})")
+                logging.warning(f"Error during sandbox cleanup ({format_duration(cleanup_duration)})")
                 logging.exception(e, extra={"context": "cleanup", "sandbox_id": sandbox_id, "duration": format_duration(cleanup_duration)})
 
         # Print execution summary
         total_duration = time.time() - script_start
-        logging.info("")
-        logging.info("=" * 60)
-        logging.info("EXECUTION SUMMARY")
-        logging.info("=" * 60)
-        logging.info(f"Total execution time: {format_duration(total_duration)}")
-        logging.info(f"Completed at: {datetime.now().isoformat()}")
-        logging.info("=" * 60)
+        logging.info(f"Execution completed in {format_duration(total_duration)}")
 
 if __name__ == "__main__":
     main()
