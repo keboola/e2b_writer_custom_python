@@ -1456,13 +1456,24 @@ function markdownToHtml(markdown) {
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: #ff8800; text-decoration: none;">$1</a>')
     // Horizontal rule
     .replace(/^---$/gim, '<hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />')
+    // Ordered list items (numbered)
+    .replace(/^\d+\.\s+(.*)$/gim, '<li-ordered style="margin: 5px 0;">$1</li-ordered>')
     // Unordered list items
-    .replace(/^- (.*)$/gim, '<li style="margin: 5px 0;">$1</li>')
+    .replace(/^- (.*)$/gim, '<li-unordered style="margin: 5px 0;">$1</li-unordered>')
     // Checkmarks
     .replace(/✅/g, '<span style="color: #4caf50;">✅</span>');
 
-  // Wrap list items in ul tags
-  html = html.replace(/(<li[^>]*>.*<\/li>\s*)+/gs, '<ul style="margin: 10px 0; padding-left: 25px;">$&</ul>');
+  // Wrap ordered list items in ol tags
+  html = html.replace(/(<li-ordered[^>]*>.*<\/li-ordered>\s*)+/gs, (match) => {
+    const items = match.replace(/<li-ordered/g, '<li').replace(/<\/li-ordered>/g, '</li>');
+    return `<ol style="margin: 10px 0; padding-left: 25px;">${items}</ol>`;
+  });
+
+  // Wrap unordered list items in ul tags
+  html = html.replace(/(<li-unordered[^>]*>.*<\/li-unordered>\s*)+/gs, (match) => {
+    const items = match.replace(/<li-unordered/g, '<li').replace(/<\/li-unordered>/g, '</li>');
+    return `<ul style="margin: 10px 0; padding-left: 25px;">${items}</ul>`;
+  });
 
   // Wrap paragraphs
   html = html.split('\n\n').map(para => {

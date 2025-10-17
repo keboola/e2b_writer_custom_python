@@ -1,6 +1,6 @@
 # e2b Integration for Keboola - v0.1.0
 
-**What it does:** Execute Python code in isolated e2b sandboxes with automatic input data transfer.
+Execute Python code in isolated e2b sandboxes with automatic input data transfer.
 
 ## Key Features
 
@@ -11,6 +11,7 @@
 - ✅ Configurable logging (INFO/DEBUG)
 
 **Status:** Phase 3 complete (Input Mapping & Data Transfer)
+
 **Next:** Phase 4 - Output table mapping, file I/O support
 
 ---
