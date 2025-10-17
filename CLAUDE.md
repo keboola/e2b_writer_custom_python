@@ -47,21 +47,13 @@ The extension only injects UI when `e2b: true` exists in the User Parameters JSO
 
 ### Local Python Development
 
-**Setup and test e2b integration locally:**
+**Quick start:**
 ```bash
-# Set your e2b API key in .env file
 echo "E2B_API_KEY=your-key-here" > .env
-
-# Run automated setup and test
-./setup_and_test.sh
+./tools/setup_and_test.sh
 ```
 
-**Files:**
-- `main.py` - Local e2b sandbox test script with 4 test cases
-- `setup_and_test.sh` - Automated setup (venv, dependencies, tests)
-- `requirements.txt` - Python dependencies (e2b-code-interpreter)
-- `.env` - Environment variables (E2B_API_KEY)
-- `TEST_README.md` - Comprehensive local testing guide
+See "Testing e2b Integration Locally" section for detailed workflow and patterns.
 
 ## Architecture
 
@@ -76,13 +68,18 @@ kbc-e2b-writer/
 │   ├── content/
 │   │   ├── content-script.js      # Main injection logic
 │   │   └── inject-helper.js       # Page context helper (CodeMirror access)
-│   └── assets/icons/              # Extension icons
-├── main.py                         # Local e2b sandbox test script
+│   ├── assets/icons/              # Extension icons
+│   └── public/
+│       └── e2b.png                # e2b logo for icon replacement
+├── tools/
+│   ├── setup_and_test.sh          # Automated local setup/test
+│   └── TEST_README.md             # Local testing guide
+├── main.py                         # Production Python script (deployed via Git)
 ├── requirements.txt                # Python dependencies
-├── setup_and_test.sh              # Automated local setup/test
+├── CHANGELOG.md                    # Detailed technical changelog
+├── CHANGELOG-SHORT.md              # User-facing changelog (embedded in UI)
 ├── .env                           # Environment variables (not in git)
-├── .env.example                   # Environment template
-└── TEST_README.md                 # Local testing guide
+└── .env.example                   # Environment template
 ```
 
 ### Key Components
@@ -97,12 +94,9 @@ kbc-e2b-writer/
 - Checks if `e2b: true` exists in User Parameters before injecting UI
 - Injects "e2b Integration" button into Keboola action panel
 - Creates configuration modal using Shadow DOM for style isolation
-- **Initialization Feature** (lines 475-614): One-click setup that:
-  - Selects Python 3.13 environment
-  - Configures Git repository mode
-  - Sets repo URL: `https://github.com/keboola/e2b_writer_custom_python`
-  - Sets branch to `main` and script filename to `main.py`
-  - Automatically saves configuration
+- **UI Simplification** (`hideUnnecessarySections()`): Automatically hides unnecessary sections to streamline interface (see Known Issues #1 for details)
+- **Initialization Feature**: One-click Python 3.13 + Git repository setup (see "Initialization Flow" in Data Flow section)
+- **Changelog Tab** (`injectE2bTab()`): Adds "e2b in Keboola" tab that fetches and renders CHANGELOG-SHORT.md inline with markdown-to-HTML conversion
 - Handles SPA navigation via `MutationObserver`
 
 **inject-helper.js** (chrome-extension/content/inject-helper.js)
@@ -149,9 +143,9 @@ Right-side action panel, after "Debug mode" button
 4. **Git settings populated:**
    - Repository URL: `https://github.com/keboola/e2b_writer_custom_python`
    - Access: Public
-   - Branch: `main`
-   - Script: `main.py`
-5. **Save button clicked** → Configuration persisted automatically
+   - Branch: `main` (default - not explicitly set)
+   - Script: `main.py` (default - not explicitly set)
+5. **Extension automatically clicks Save** → Configuration persisted
 
 ### CodeMirror Access Pattern
 
@@ -159,9 +153,12 @@ The extension uses a two-step approach to access Keboola's User Parameters edito
 
 1. **Content script** injects `inject-helper.js` into page context
 2. **Helper script** accesses `document.querySelectorAll('.CodeMirror')` to find editors
-3. Communication via `CustomEvent`: `e2b-get-value`, `e2b-set-value`, `e2b-cm-value`, `e2b-cm-set`
+3. **Editor detection**: Helper finds correct editor by checking if content includes `"debug"` or `"e2b"`
+4. Communication via `CustomEvent`: `e2b-get-value`, `e2b-set-value`, `e2b-cm-value`, `e2b-cm-set`
 
 This pattern bypasses content script isolation to access page-level JavaScript objects.
+
+**Limitation:** May fail if User Parameters is completely empty (no detection keywords).
 
 ## API Integration
 
@@ -210,50 +207,87 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 - One-click initialization (Python 3.13 + Git repo configuration)
 - Local development environment (main.py, testing scripts)
 
-**Phase 3: File Upload** 🚧 (Next)
-- Keboola Storage upload, e2b sandbox upload, progress tracking
+**Phase 3: Input Mapping & Data Transfer** ✅ (Complete)
+- Keboola Input Mapping integration via CommonInterface
+- Automatic CSV file transfer to e2b sandboxes
+- Comprehensive DEBUG logging with timing and error tracking
+- Object-based table access (table.destination, table_def.full_path)
 
 **Phase 4: Advanced Features** (Planned)
-- Sandbox lifecycle management, error handling, retry logic
+- Output table mapping
+- File input/output support
+- Sandbox lifecycle management
+- Advanced error handling and retry logic
 
 ## Known Issues & Design Decisions
 
-1. **Conditional Injection**: Extension only injects UI when `e2b: true` exists in User Parameters
+1. **UI Simplification**: Extension automatically hides unnecessary sections to streamline the interface
+   - **Hidden sections:** Configuration Description, Table Output Mapping, File Output Mapping, Variables, Processors
+   - **Python Version section:** Radio buttons hidden off-screen (position: absolute; left: -9999px) with informational message "Python Environment: Managed by e2b Integration" shown instead
+   - **Source Code radio buttons:** Hidden off-screen to prevent switching between Git and inline code
+   - **User Parameters notice:** Blue info box added above editor explaining parameters are managed via e2b Integration panel
+   - **Key design decision:** Elements are hidden visually but kept in the DOM so the initialization function can still interact with them programmatically (e.g., clicking Python 3.13 radio button)
+   - Rationale: Reduce UI clutter, focus user attention on e2b-relevant settings, while maintaining full programmatic control
+   - Implementation: Uses `position: absolute; left: -9999px; visibility: hidden;` instead of `display: none` or innerHTML replacement (content-script.js:1088-1203)
+
+2. **Conditional Injection**: Extension only injects UI when `e2b: true` exists in User Parameters
    - Rationale: Avoid clutter for users not using e2b integration
 
-2. **Python Version**: Configured to use Python 3.13
+3. **Python Version**: Configured to use Python 3.13
    - Rationale: Latest stable Python version with improved performance
-   - Location: Initialization function (content-script.js:485-497)
+   - Location: Initialization function (content-script.js:545-547)
 
-3. **Template Parameter Always Defined**: `e2b_template` is always stored with a concrete value
-   - When "Default" is selected: stores `"code-interpreter"`
-   - When custom template is entered: stores the custom template ID
-   - Rationale: User Parameters become environment variables for Python scripts using e2b SDK
+4. **Template Parameter Always Defined**: See "Configuration Parameter Schema" section - `e2b_template` is always `"code-interpreter"` or custom template ID
 
-4. **Branch Field Detection**: Uses multiple fallback strategies (content-script.js:551-602)
-   - Checks label text, placeholder, name attribute
-   - Falls back to visible text inputs if specific match not found
-   - Logs detailed debug information for troubleshooting
+5. **Branch Field Detection**: Simplified to use defaults
+   - Branch and Script Filename default to "main" and "main.py"
+   - Users can manually click "List Branches" / "List Files" if needed
+   - Rationale: Avoided complex DOM manipulation with React Select components
 
-5. **CodeMirror Detection**: Helper script finds editor by checking if content includes `"debug"` or `"e2b"`
-   - Limitation: May fail if User Parameters is completely empty
+6. **CodeMirror Detection**: See "CodeMirror Access Pattern" section for details
 
-6. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
+7. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
    - Trade-off: Some performance overhead, but reliable detection
 
-7. **No Build System**: Pure vanilla JS, no bundler
+8. **No Build System**: Pure vanilla JS, no bundler
    - Benefit: Simple deployment, no build step
    - Trade-off: No TypeScript, no tree-shaking
 
-8. **e2b SDK Usage**: Local testing uses synchronous `Sandbox.create()` API
-   - API key loaded from `E2B_API_KEY` environment variable
-   - Execution output accessed via `execution.logs.stdout`
-   - Sandbox cleanup via `sandbox.kill()`
+9. **e2b SDK Usage**: See "Testing e2b Integration Locally" section for complete patterns
+
+10. **Dual-Mode API Key Loading**: See "Understanding Keboola vs Local Testing Modes" section for details
+
+11. **GitHub-Based Deployment**: See "Testing in Keboola" section - all `main.py` changes MUST be pushed to GitHub before Keboola testing
+
+12. **e2b Integration Button**: Positioned at top of action panel with brand styling
+   - **Position**: First item in action list (above green RUN COMPONENT button)
+   - **Styling**: Solid e2b orange (#ff8800) background, white text, 40px height
+   - **Hover effect**: Darkens to #e67a00 with enhanced shadow
+   - **Implementation**: insertBefore() places button before all other actions (content-script.js:1023-1027)
+
+13. **Component Icon Replacement**: Custom Python icon replaced with e2b logo
+   - **Icon**: e2b black star logo from `chrome-extension/public/e2b.png`
+   - **Background**: e2b brand orange (#ff8800) with 8px padding
+   - **CSS Override**: Removes `bg-color-white` class and uses `!important` flag
+   - **Purpose**: Visual branding and instant recognition of e2b-enabled configs
+   - **Implementation**: replaceComponentIcon() function (content-script.js:1188-1230)
+
+14. **Input Mapping Object Access**: CRITICAL - See "Working with Input Mapping" section for complete details on object vs dict access patterns
+
+15. **Changelog Tab**: "e2b in Keboola" tab embedded in configuration page
+   - **Location**: 4th tab after Versions
+   - **Content Source**: CHANGELOG-SHORT.md fetched from GitHub raw URL
+   - **Rendering**: Custom markdown-to-HTML converter with e2b styling
+   - **Behavior**: Replaces entire tab content area (hides info panel + content)
+   - **Fallback**: Link to GitHub if fetch fails
+   - **Implementation**: See "Changelog Tab Feature" section for details
 
 ## Documentation Structure
 
 - **README.md** (root): High-level research notes on Keboola/e2b integration
 - **CLAUDE.md** (this file): Development guide for AI assistants
+- **CHANGELOG.md**: Detailed technical changelog for developers
+- **CHANGELOG-SHORT.md**: User-facing changelog embedded in UI (via "e2b in Keboola" tab)
 - **TEST_README.md**: Local testing guide with troubleshooting
 - **chrome-extension/README.md**: Installation, testing, debugging guide
 - **docs/plan/README.md**: Planning docs index
@@ -262,7 +296,61 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 - **docs/plan/implementation-quick-start.md**: Step-by-step implementation guide
 - **docs/plan/workflow-diagrams.md**: ASCII workflow diagrams
 
+### Changelog Tab Feature
+
+The extension injects a custom "e2b in Keboola" tab into the configuration page tabs.
+
+**Location:** content-script.js:1248-1439
+
+**Features:**
+- Appears as 4th tab (after "Information & Settings", "Notifications", "Versions")
+- Orange color (#ff8800) matching e2b brand
+- Book icon (📖) to indicate documentation
+- Fetches CHANGELOG-SHORT.md from GitHub raw URL
+- Renders markdown inline with custom styling
+- URL updates to `/e2b-changelog` when active
+- Hides component info panel and tab content when active
+- Restores original content when switching to other tabs
+
+**Implementation:**
+```javascript
+// injectE2bTab() - Creates tab and click handler
+// showChangelogContent() - Fetches and renders markdown
+// markdownToHtml() - Simple markdown parser with e2b styling
+```
+
+**Markdown Support:**
+- Headers (h1, h2, h3)
+- Bold, italic, inline code
+- Links (open in new tab)
+- Unordered lists
+- Horizontal rules
+- Green checkmarks (✅) for features
+
 ## Common Development Patterns
+
+### Understanding Keboola vs Local Testing Modes
+
+The `main.py` script supports two execution modes:
+
+**Keboola Mode** (Production):
+```python
+from keboola.component import CommonInterface
+
+ci = CommonInterface()
+api_key = ci.configuration.parameters['#e2b_api_key']  # Auto-decrypted
+```
+
+**Local Mode** (Development):
+```python
+import os
+api_key = os.environ.get('E2B_API_KEY')
+```
+
+The script automatically detects which mode to use:
+1. Tries `CommonInterface` first (Keboola mode)
+2. Falls back to environment variable if CommonInterface not available
+3. Logs clear messages about which mode is active
 
 ### Testing e2b Integration Locally
 
@@ -273,12 +361,12 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 
 2. **Run tests:**
    ```bash
-   ./setup_and_test.sh
+   ./tools/setup_and_test.sh
    ```
 
 3. **Develop incrementally:**
    - Edit `main.py` to add new functionality
-   - Run `./setup_and_test.sh` to test changes
+   - Run `./tools/setup_and_test.sh` to test changes
    - Check output for `execution.logs.stdout` content
 
 4. **Key patterns:**
@@ -295,6 +383,147 @@ This pattern bypasses content script isolation to access page-level JavaScript o
    # Cleanup
    sandbox.kill()
    ```
+
+### Logging Best Practices (Keboola)
+
+**IMPORTANT:** Always use Python's `logging` library after initializing `CommonInterface`. The logger is automatically configured by Keboola (GELF or STDOUT).
+
+**Reference:** https://raw.githubusercontent.com/keboola/component-custom-python/refs/heads/main/README.md
+
+**Correct Pattern:**
+```python
+import logging
+from keboola.component import CommonInterface
+
+# Initialize CommonInterface first - this sets up the rich logger
+ci = CommonInterface()
+
+# Now use standard logging methods
+logging.info("Info message")
+logging.warning("Warning message")
+logging.error("Error message")
+logging.exception(e, extra={"test_name": "test1", "duration": "1.5s"})
+```
+
+**Log Level Usage:**
+- `logging.info()` - General progress, successful operations, configuration
+- `logging.warning()` - Non-critical issues, deprecation notices
+- `logging.error()` - Critical failures, test failures
+- `logging.exception()` - Exceptions with stack traces and structured context
+
+**Structured Error Logging:**
+Use the `extra` parameter to attach additional context for debugging:
+```python
+try:
+    # ... code ...
+except Exception as e:
+    logging.exception(e, extra={
+        "context": "cleanup",
+        "sandbox_id": sandbox_id,
+        "duration": format_duration(duration)
+    })
+```
+
+**Benefits in Keboola:**
+- Logs are properly formatted and categorized by severity
+- Easy filtering in Keboola UI by log level
+- Structured context helps with production debugging
+- Stack traces are automatically captured with `logging.exception()`
+
+### Testing in Keboola
+
+**CRITICAL: All changes to `main.py` MUST be committed and pushed to GitHub before testing in Keboola.**
+
+Keboola does NOT use your local files. It clones the code from the Git repository URL specified in the configuration. This means:
+- Local changes are NOT visible to Keboola until pushed to GitHub
+- Always commit and push before testing in Keboola
+- Use the branch name specified in the configuration (currently: `fix/keboola-api-key-integration`)
+
+**Testing Workflow:**
+
+1. **Make changes locally** and test with `./tools/setup_and_test.sh`
+
+2. **Commit and push to GitHub:**
+   ```bash
+   git add main.py
+   git commit -m "Your commit message"
+   git push origin fix/keboola-api-key-integration
+   ```
+
+3. **Configure User Parameters** via Chrome extension:
+   - Set `e2b: true`
+   - Set `#e2b_api_key` (will be encrypted automatically)
+   - Set `e2b_template` and `e2b_timeout` as needed
+
+4. **Initialize Python environment** (if not already done):
+   - Click "Initialize Python & Git Configuration" in extension
+   - Verifies Python 3.13 and Git repository are configured
+
+5. **Run the component** in Keboola:
+   - Keboola clones the repository from GitHub
+   - Checks out the specified branch
+   - Installs dependencies from `requirements.txt`
+   - Executes `main.py`
+   - API key is automatically loaded from user parameters
+
+### Working with Input Mapping
+
+**CRITICAL:** Input tables from Keboola are **objects with properties**, not dictionaries!
+
+**Correct Pattern (from official README):**
+```python
+from keboola.component import CommonInterface
+
+ci = CommonInterface()
+input_tables = ci.configuration.tables_input_mapping
+
+for table in input_tables:
+    # Access as object properties, NOT dict keys!
+    table_name = table.destination          # ✅ Correct
+    source_id = table.source                # ✅ Correct
+
+    # Get table definition
+    table_def = ci.get_input_table_definition_by_name(table_name)
+
+    # Access table_def properties
+    local_path = table_def.full_path        # ✅ Correct
+    columns = table_def.column_names        # ✅ Correct (or .columns)
+
+    # Read CSV file
+    with open(local_path, 'r') as f:
+        csv_content = f.read()
+```
+
+**WRONG - Will cause errors:**
+```python
+# ❌ WRONG - These will fail!
+table_name = table.get('destination')       # AttributeError
+table_name = table['destination']           # TypeError
+columns = table_def['columns']              # TypeError
+```
+
+**How Keboola Materializes Tables:**
+1. Tables configured in Input Mapping are copied to `/data/in/tables/`
+2. Files: `locations.csv` + `locations.csv.manifest` (JSON metadata)
+3. CommonInterface reads manifests to provide table definitions
+4. Your code reads the CSV files using paths from table_def
+
+**DEBUG Logging for Input Mapping:**
+```python
+# Log data directory contents
+data_dir = ci.data_folder_path
+logging.debug(f"Data folder: {data_dir}")
+
+# List materialized files
+import os
+files = os.listdir(os.path.join(data_dir, 'in', 'tables'))
+logging.debug(f"Input files: {files}")
+
+# Log table info
+logging.debug(f"Table destination: {table.destination}")
+logging.debug(f"Table source: {table.source}")
+logging.debug(f"Full path: {table_def.full_path}")
+```
 
 ### Adding a New Configuration Field
 
@@ -330,7 +559,9 @@ chrome.runtime.sendMessage(
 
 ## External Resources
 
-- **Keboola Custom Python Component**: https://github.com/keboola/component-custom-python
+- **Keboola Custom Python Component README** (CRITICAL): https://raw.githubusercontent.com/keboola/component-custom-python/refs/heads/main/README.md
+  - **Must-read for logging, testing, and deployment**
+- **Keboola Custom Python Component Repo**: https://github.com/keboola/component-custom-python
 - **Keboola Storage API Docs**: https://keboola.docs.apiary.io/
 - **e2b Documentation**: https://e2b.dev/docs
 - **e2b Python SDK**: https://github.com/e2b-dev/e2b

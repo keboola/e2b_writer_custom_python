@@ -1,8 +1,0 @@
-# Requirements for Keboola Custom Python Component
-# This file should be placed in the e2b_writer_custom_python GitHub repository
-
-# Keboola Component library (auto-installed by Keboola, but good to document)
-keboola.component>=2.0.0
-
-# e2b Code Interpreter SDK
-e2b-code-interpreter>=1.0.0
