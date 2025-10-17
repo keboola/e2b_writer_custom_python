@@ -254,6 +254,13 @@ This pattern bypasses content script isolation to access page-level JavaScript o
    - **Local mode**: Falls back to `E2B_API_KEY` environment variable
    - Automatic detection with clear logging of active mode
 
+10. **GitHub-Based Deployment**: Keboola loads code from Git repository (not local files)
+   - All changes to `main.py` MUST be committed and pushed to GitHub
+   - Keboola clones from the repository URL in the configuration
+   - Test locally first, then commit/push, then test in Keboola
+   - Branch used: `fix/keboola-api-key-integration` (configurable)
+   - Reference: https://raw.githubusercontent.com/keboola/component-custom-python/refs/heads/main/README.md
+
 ## Documentation Structure
 
 - **README.md** (root): High-level research notes on Keboola/e2b integration
@@ -323,19 +330,84 @@ The script automatically detects which mode to use:
    sandbox.kill()
    ```
 
+### Logging Best Practices (Keboola)
+
+**IMPORTANT:** Always use Python's `logging` library after initializing `CommonInterface`. The logger is automatically configured by Keboola (GELF or STDOUT).
+
+**Reference:** https://raw.githubusercontent.com/keboola/component-custom-python/refs/heads/main/README.md
+
+**Correct Pattern:**
+```python
+import logging
+from keboola.component import CommonInterface
+
+# Initialize CommonInterface first - this sets up the rich logger
+ci = CommonInterface()
+
+# Now use standard logging methods
+logging.info("Info message")
+logging.warning("Warning message")
+logging.error("Error message")
+logging.exception(e, extra={"test_name": "test1", "duration": "1.5s"})
+```
+
+**Log Level Usage:**
+- `logging.info()` - General progress, successful operations, configuration
+- `logging.warning()` - Non-critical issues, deprecation notices
+- `logging.error()` - Critical failures, test failures
+- `logging.exception()` - Exceptions with stack traces and structured context
+
+**Structured Error Logging:**
+Use the `extra` parameter to attach additional context for debugging:
+```python
+try:
+    # ... code ...
+except Exception as e:
+    logging.exception(e, extra={
+        "context": "cleanup",
+        "sandbox_id": sandbox_id,
+        "duration": format_duration(duration)
+    })
+```
+
+**Benefits in Keboola:**
+- Logs are properly formatted and categorized by severity
+- Easy filtering in Keboola UI by log level
+- Structured context helps with production debugging
+- Stack traces are automatically captured with `logging.exception()`
+
 ### Testing in Keboola
 
-1. **Configure User Parameters** via Chrome extension:
+**CRITICAL: All changes to `main.py` MUST be committed and pushed to GitHub before testing in Keboola.**
+
+Keboola does NOT use your local files. It clones the code from the Git repository URL specified in the configuration. This means:
+- Local changes are NOT visible to Keboola until pushed to GitHub
+- Always commit and push before testing in Keboola
+- Use the branch name specified in the configuration (currently: `fix/keboola-api-key-integration`)
+
+**Testing Workflow:**
+
+1. **Make changes locally** and test with `./tools/setup_and_test.sh`
+
+2. **Commit and push to GitHub:**
+   ```bash
+   git add main.py
+   git commit -m "Your commit message"
+   git push origin fix/keboola-api-key-integration
+   ```
+
+3. **Configure User Parameters** via Chrome extension:
    - Set `e2b: true`
    - Set `#e2b_api_key` (will be encrypted automatically)
    - Set `e2b_template` and `e2b_timeout` as needed
 
-2. **Initialize Python environment**:
+4. **Initialize Python environment** (if not already done):
    - Click "Initialize Python & Git Configuration" in extension
    - Verifies Python 3.13 and Git repository are configured
 
-3. **Run the component**:
-   - Keboola automatically clones the repository
+5. **Run the component** in Keboola:
+   - Keboola clones the repository from GitHub
+   - Checks out the specified branch
    - Installs dependencies from `requirements.txt`
    - Executes `main.py`
    - API key is automatically loaded from user parameters
@@ -374,7 +446,9 @@ chrome.runtime.sendMessage(
 
 ## External Resources
 
-- **Keboola Custom Python Component**: https://github.com/keboola/component-custom-python
+- **Keboola Custom Python Component README** (CRITICAL): https://raw.githubusercontent.com/keboola/component-custom-python/refs/heads/main/README.md
+  - **Must-read for logging, testing, and deployment**
+- **Keboola Custom Python Component Repo**: https://github.com/keboola/component-custom-python
 - **Keboola Storage API Docs**: https://keboola.docs.apiary.io/
 - **e2b Documentation**: https://e2b.dev/docs
 - **e2b Python SDK**: https://github.com/e2b-dev/e2b
