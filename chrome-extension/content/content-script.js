@@ -1346,16 +1346,14 @@ function injectE2bTab() {
         changelogContainer.style.display = 'none';
       }
 
-      // Show original content - find content area same way as showChangelogContent
-      let mainContent = tabNav.nextElementSibling;
-      if (!mainContent || !mainContent.children.length) {
-        const tabContainer = tabNav.parentElement;
-        mainContent = tabContainer?.nextElementSibling;
-      }
-
-      if (mainContent) {
-        const existingContent = mainContent.querySelectorAll(':scope > div:not(#e2b-changelog-container), :scope > section:not(#e2b-changelog-container)');
-        existingContent.forEach(el => el.style.display = '');
+      // Show original content (info panel and tab content)
+      const mainContainer = tabNav.parentElement.parentElement;
+      if (mainContainer) {
+        Array.from(mainContainer.children).forEach((child, idx) => {
+          if (idx > 0 && child.id !== 'e2b-changelog-container') {
+            child.style.display = '';
+          }
+        });
       }
     });
   });
@@ -1374,26 +1372,21 @@ async function showChangelogContent() {
     return;
   }
 
-  // Find the main content area (the sibling/parent container below tabs)
-  // The content is typically a sibling or in a parent's next sibling
-  let mainContent = tabNav.nextElementSibling;
-
-  // If not found as sibling, try finding parent's sibling
-  if (!mainContent || !mainContent.children.length) {
-    const tabContainer = tabNav.parentElement;
-    mainContent = tabContainer?.nextElementSibling;
-  }
-
-  if (!mainContent) {
-    console.warn('[e2b Extension] Main content area not found');
+  // The main container has 3 children: [0] tabs, [1] info panel, [2] actual content
+  const mainContainer = tabNav.parentElement.parentElement;
+  if (!mainContainer) {
+    console.warn('[e2b Extension] Main container not found');
     return;
   }
 
-  console.log('[e2b Extension] Found content area:', mainContent);
+  console.log('[e2b Extension] Found main container:', mainContainer);
 
-  // Hide all existing tab content
-  const existingContent = mainContent.querySelectorAll(':scope > div, :scope > section');
-  existingContent.forEach(el => el.style.display = 'none');
+  // Hide the component info panel (child 1) and the tab content (child 2)
+  Array.from(mainContainer.children).forEach((child, idx) => {
+    if (idx > 0) {  // Skip the tabs wrapper (index 0)
+      child.style.display = 'none';
+    }
+  });
 
   // Check if changelog container already exists
   let changelogContainer = document.getElementById('e2b-changelog-container');
@@ -1405,11 +1398,12 @@ async function showChangelogContent() {
   // Create new container for changelog
   changelogContainer = document.createElement('div');
   changelogContainer.id = 'e2b-changelog-container';
-  changelogContainer.style.cssText = 'padding: 20px; max-width: 900px; margin: 0 auto;';
+  changelogContainer.className = 'row';  // Match the class of the original content
+  changelogContainer.style.cssText = 'padding: 40px 20px; max-width: 1200px; margin: 0 auto;';
 
   // Show loading state
   changelogContainer.innerHTML = '<p style="text-align: center; color: #666;">Loading changelog...</p>';
-  mainContent.appendChild(changelogContainer);
+  mainContainer.appendChild(changelogContainer);
 
   // Fetch changelog from GitHub
   const currentBranch = 'fix/keboola-api-key-integration';
