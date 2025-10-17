@@ -82,27 +82,29 @@ function findDebugModeItem(actionList) {
 // Create the extension toggle button
 function createExtensionButton() {
   const item = document.createElement('li');
-  item.style.cssText = 'list-style: none;';
+  item.style.cssText = 'list-style: none; margin-bottom: 8px;';
   item.id = 'kbc-e2b-button-item';
 
   item.innerHTML = `
     <button id="kbc-e2b-toggle" style="
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      padding: 8px 16px;
-      background: white;
-      border: 2px solid #FF6C37;
+      padding: 12px 16px;
+      background: #ff8800;
+      border: none;
       border-radius: 4px;
       cursor: pointer;
       font-size: 14px;
       width: 100%;
-      text-align: left;
+      text-align: center;
       font-family: inherit;
-      color: #FF6C37;
-      font-weight: 500;
+      color: white;
+      font-weight: 600;
       transition: all 0.2s;
-    " onmouseover="this.style.background='#FF6C37'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#FF6C37';">
+      box-shadow: 0 2px 4px rgba(255, 136, 0, 0.2);
+    " onmouseover="this.style.background='#e67a00'; this.style.boxShadow='0 4px 8px rgba(255, 136, 0, 0.3)';" onmouseout="this.style.background='#ff8800'; this.style.boxShadow='0 2px 4px rgba(255, 136, 0, 0.2)';">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
         <path d="M9 12h6M12 9v6"/>
@@ -1014,12 +1016,12 @@ async function injectExtension() {
     return;
   }
 
-  // Create and inject button
+  // Create and inject button at the top (before RUN button)
   const extensionItem = createExtensionButton();
-  const debugModeItem = findDebugModeItem(actionList);
 
-  if (debugModeItem) {
-    debugModeItem.insertAdjacentElement('afterend', extensionItem);
+  // Insert as first child of the action list
+  if (actionList.firstChild) {
+    actionList.insertBefore(extensionItem, actionList.firstChild);
   } else {
     actionList.appendChild(extensionItem);
   }
