@@ -1346,10 +1346,15 @@ function injectE2bTab() {
         changelogContainer.style.display = 'none';
       }
 
-      // Show original content
-      const mainContent = document.querySelector('div[class*="container"]');
+      // Show original content - find content area same way as showChangelogContent
+      let mainContent = tabNav.nextElementSibling;
+      if (!mainContent || !mainContent.children.length) {
+        const tabContainer = tabNav.parentElement;
+        mainContent = tabContainer?.nextElementSibling;
+      }
+
       if (mainContent) {
-        const existingContent = mainContent.querySelectorAll(':scope > div:not(#e2b-changelog-container)');
+        const existingContent = mainContent.querySelectorAll(':scope > div:not(#e2b-changelog-container), :scope > section:not(#e2b-changelog-container)');
         existingContent.forEach(el => el.style.display = '');
       }
     });
@@ -1362,15 +1367,32 @@ function injectE2bTab() {
 async function showChangelogContent() {
   console.log('[e2b Extension] Showing changelog content...');
 
-  // Find the main content area (the area below tabs)
-  const mainContent = document.querySelector('div[class*="container"]');
+  // Find the tab navigation first
+  const tabNav = document.querySelector('ul.nav.nav-tabs[role="navigation"]');
+  if (!tabNav) {
+    console.warn('[e2b Extension] Tab navigation not found');
+    return;
+  }
+
+  // Find the main content area (the sibling/parent container below tabs)
+  // The content is typically a sibling or in a parent's next sibling
+  let mainContent = tabNav.nextElementSibling;
+
+  // If not found as sibling, try finding parent's sibling
+  if (!mainContent || !mainContent.children.length) {
+    const tabContainer = tabNav.parentElement;
+    mainContent = tabContainer?.nextElementSibling;
+  }
+
   if (!mainContent) {
     console.warn('[e2b Extension] Main content area not found');
     return;
   }
 
+  console.log('[e2b Extension] Found content area:', mainContent);
+
   // Hide all existing tab content
-  const existingContent = mainContent.querySelectorAll(':scope > div');
+  const existingContent = mainContent.querySelectorAll(':scope > div, :scope > section');
   existingContent.forEach(el => el.style.display = 'none');
 
   // Check if changelog container already exists
