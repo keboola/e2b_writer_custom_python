@@ -47,21 +47,13 @@ The extension only injects UI when `e2b: true` exists in the User Parameters JSO
 
 ### Local Python Development
 
-**Setup and test e2b integration locally:**
+**Quick start:**
 ```bash
-# Set your e2b API key in .env file
 echo "E2B_API_KEY=your-key-here" > .env
-
-# Run automated setup and test
-./setup_and_test.sh
+./tools/setup_and_test.sh
 ```
 
-**Files:**
-- `main.py` - Local e2b sandbox test script with 4 test cases
-- `setup_and_test.sh` - Automated setup (venv, dependencies, tests)
-- `requirements.txt` - Python dependencies (e2b-code-interpreter)
-- `.env` - Environment variables (E2B_API_KEY)
-- `TEST_README.md` - Comprehensive local testing guide
+See "Testing e2b Integration Locally" section for detailed workflow and patterns.
 
 ## Architecture
 
@@ -76,13 +68,18 @@ kbc-e2b-writer/
 │   ├── content/
 │   │   ├── content-script.js      # Main injection logic
 │   │   └── inject-helper.js       # Page context helper (CodeMirror access)
-│   └── assets/icons/              # Extension icons
-├── main.py                         # Local e2b sandbox test script
+│   ├── assets/icons/              # Extension icons
+│   └── public/
+│       └── e2b.png                # e2b logo for icon replacement
+├── tools/
+│   ├── setup_and_test.sh          # Automated local setup/test
+│   └── TEST_README.md             # Local testing guide
+├── main.py                         # Production Python script (deployed via Git)
 ├── requirements.txt                # Python dependencies
-├── setup_and_test.sh              # Automated local setup/test
+├── CHANGELOG.md                    # Detailed technical changelog
+├── CHANGELOG-SHORT.md              # User-facing changelog (embedded in UI)
 ├── .env                           # Environment variables (not in git)
-├── .env.example                   # Environment template
-└── TEST_README.md                 # Local testing guide
+└── .env.example                   # Environment template
 ```
 
 ### Key Components
@@ -97,20 +94,9 @@ kbc-e2b-writer/
 - Checks if `e2b: true` exists in User Parameters before injecting UI
 - Injects "e2b Integration" button into Keboola action panel
 - Creates configuration modal using Shadow DOM for style isolation
-- **UI Simplification** (`hideUnnecessarySections()`): Automatically hides unnecessary sections:
-  - Configuration Description (collapsible box)
-  - Table Output Mapping
-  - File Output Mapping
-  - Variables
-  - Adds informational notice above User Parameters
-  - Attempts to replace Python Version section with simple message
-  - Attempts to hide Source Code radio buttons (keep only Git settings)
-- **Initialization Feature** (lines 495-612): One-click setup that:
-  - Selects Python 3.13 environment
-  - Configures Git repository mode
-  - Sets repo URL: `https://github.com/keboola/e2b_writer_custom_python`
-  - Sets branch to `main` and script filename to `main.py` (defaults)
-  - Automatically clicks Save button to persist configuration
+- **UI Simplification** (`hideUnnecessarySections()`): Automatically hides unnecessary sections to streamline interface (see Known Issues #1 for details)
+- **Initialization Feature**: One-click Python 3.13 + Git repository setup (see "Initialization Flow" in Data Flow section)
+- **Changelog Tab** (`injectE2bTab()`): Adds "e2b in Keboola" tab that fetches and renders CHANGELOG-SHORT.md inline with markdown-to-HTML conversion
 - Handles SPA navigation via `MutationObserver`
 
 **inject-helper.js** (chrome-extension/content/inject-helper.js)
@@ -167,9 +153,12 @@ The extension uses a two-step approach to access Keboola's User Parameters edito
 
 1. **Content script** injects `inject-helper.js` into page context
 2. **Helper script** accesses `document.querySelectorAll('.CodeMirror')` to find editors
-3. Communication via `CustomEvent`: `e2b-get-value`, `e2b-set-value`, `e2b-cm-value`, `e2b-cm-set`
+3. **Editor detection**: Helper finds correct editor by checking if content includes `"debug"` or `"e2b"`
+4. Communication via `CustomEvent`: `e2b-get-value`, `e2b-set-value`, `e2b-cm-value`, `e2b-cm-set`
 
 This pattern bypasses content script isolation to access page-level JavaScript objects.
+
+**Limitation:** May fail if User Parameters is completely empty (no detection keywords).
 
 ## API Integration
 
@@ -248,18 +237,14 @@ This pattern bypasses content script isolation to access page-level JavaScript o
    - Rationale: Latest stable Python version with improved performance
    - Location: Initialization function (content-script.js:545-547)
 
-4. **Template Parameter Always Defined**: `e2b_template` is always stored with a concrete value
-   - When "Default" is selected: stores `"code-interpreter"`
-   - When custom template is entered: stores the custom template ID
-   - Rationale: User Parameters become environment variables for Python scripts using e2b SDK
+4. **Template Parameter Always Defined**: See "Configuration Parameter Schema" section - `e2b_template` is always `"code-interpreter"` or custom template ID
 
 5. **Branch Field Detection**: Simplified to use defaults
    - Branch and Script Filename default to "main" and "main.py"
    - Users can manually click "List Branches" / "List Files" if needed
    - Rationale: Avoided complex DOM manipulation with React Select components
 
-6. **CodeMirror Detection**: Helper script finds editor by checking if content includes `"debug"` or `"e2b"`
-   - Limitation: May fail if User Parameters is completely empty
+6. **CodeMirror Detection**: See "CodeMirror Access Pattern" section for details
 
 7. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
    - Trade-off: Some performance overhead, but reliable detection
@@ -289,10 +274,20 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 
 14. **Input Mapping Object Access**: CRITICAL - See "Working with Input Mapping" section for complete details on object vs dict access patterns
 
+15. **Changelog Tab**: "e2b in Keboola" tab embedded in configuration page
+   - **Location**: 4th tab after Versions
+   - **Content Source**: CHANGELOG-SHORT.md fetched from GitHub raw URL
+   - **Rendering**: Custom markdown-to-HTML converter with e2b styling
+   - **Behavior**: Replaces entire tab content area (hides info panel + content)
+   - **Fallback**: Link to GitHub if fetch fails
+   - **Implementation**: See "Changelog Tab Feature" section for details
+
 ## Documentation Structure
 
 - **README.md** (root): High-level research notes on Keboola/e2b integration
 - **CLAUDE.md** (this file): Development guide for AI assistants
+- **CHANGELOG.md**: Detailed technical changelog for developers
+- **CHANGELOG-SHORT.md**: User-facing changelog embedded in UI (via "e2b in Keboola" tab)
 - **TEST_README.md**: Local testing guide with troubleshooting
 - **chrome-extension/README.md**: Installation, testing, debugging guide
 - **docs/plan/README.md**: Planning docs index
@@ -300,6 +295,37 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 - **docs/plan/page-structure-analysis.md**: Keboola UI DOM analysis
 - **docs/plan/implementation-quick-start.md**: Step-by-step implementation guide
 - **docs/plan/workflow-diagrams.md**: ASCII workflow diagrams
+
+### Changelog Tab Feature
+
+The extension injects a custom "e2b in Keboola" tab into the configuration page tabs.
+
+**Location:** content-script.js:1248-1439
+
+**Features:**
+- Appears as 4th tab (after "Information & Settings", "Notifications", "Versions")
+- Orange color (#ff8800) matching e2b brand
+- Book icon (📖) to indicate documentation
+- Fetches CHANGELOG-SHORT.md from GitHub raw URL
+- Renders markdown inline with custom styling
+- URL updates to `/e2b-changelog` when active
+- Hides component info panel and tab content when active
+- Restores original content when switching to other tabs
+
+**Implementation:**
+```javascript
+// injectE2bTab() - Creates tab and click handler
+// showChangelogContent() - Fetches and renders markdown
+// markdownToHtml() - Simple markdown parser with e2b styling
+```
+
+**Markdown Support:**
+- Headers (h1, h2, h3)
+- Bold, italic, inline code
+- Links (open in new tab)
+- Unordered lists
+- Horizontal rules
+- Green checkmarks (✅) for features
 
 ## Common Development Patterns
 
