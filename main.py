@@ -149,7 +149,7 @@ def run_test(test_name, test_num, total_tests, sandbox, code, description=None):
     except Exception as e:
         duration = time.time() - start_time
         logging.error(f"❌ Test failed after {format_duration(duration)}")
-        logging.exception(f"  Error: {str(e)}")
+        logging.exception(e, extra={"test_name": test_name, "duration": format_duration(duration)})
         return False, duration, None
 
 def main():
@@ -287,7 +287,7 @@ print(f"Files in /tmp: {files}")
         logging.error("=" * 60)
         logging.error("❌ Fatal error occurred")
         logging.error("=" * 60)
-        logging.exception(f"Error: {str(e)}")
+        logging.exception(e, extra={"context": "main_execution", "sandbox_id": sandbox_id})
         logging.error("")
         sys.exit(1)
 
@@ -308,8 +308,8 @@ print(f"Files in /tmp: {files}")
                     logging.info(f"  Sandbox ID: {sandbox_id}")
             except Exception as e:
                 cleanup_duration = time.time() - cleanup_start
-                logging.error(f"⚠ Error during cleanup (after {format_duration(cleanup_duration)})")
-                logging.exception(f"  Error: {str(e)}")
+                logging.warning(f"⚠ Error during cleanup (after {format_duration(cleanup_duration)})")
+                logging.exception(e, extra={"context": "cleanup", "sandbox_id": sandbox_id, "duration": format_duration(cleanup_duration)})
 
         # Print execution summary
         total_duration = time.time() - script_start
