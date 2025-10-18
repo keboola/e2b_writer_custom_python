@@ -5,6 +5,85 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-10-18
+
+Major UI redesign: Chrome extension panel transformed from simple modal to professional multi-section dashboard.
+
+### Chrome Extension
+
+#### Changed
+- **Complete UI Redesign** - Transformed extension panel into professional dashboard
+  - **Multi-section layout** with sidebar navigation
+  - **7 sections**: Overview, Configuration, Setup, Files, Monitoring, Output, Advanced
+  - **Modern design**: Card-based layout, custom CSS variables, e2b orange (#ff8800) brand colors
+  - **Shadow DOM** for complete style isolation from Keboola UI
+  - **Responsive design** with max-height 85vh and proper scrolling
+- **Overview Section** (new)
+  - Context display (Project ID, Config ID, Stack)
+  - **Status cards** showing real-time configuration state:
+    - API Key status (Not set / Set / Encrypted)
+    - Template name (code-interpreter or custom)
+    - Timeout value (in seconds)
+  - Quick Actions area with initialization button
+- **Configuration Section** (enhanced)
+  - Reorganized core settings (API key, template, timeout)
+  - Improved form layout with better hints
+  - Visual feedback for encrypted vs plain-text API keys
+- **Setup Section** (new dedicated section)
+  - One-click initialization moved to dedicated section
+  - Clear informational box explaining what will be configured
+- **Advanced Section** (new)
+  - **Log Level configuration** (ERROR, WARNING, INFO, DEBUG)
+  - **Self-test Mode toggle** for diagnostics
+  - Separate save/cancel actions
+- **Placeholder Sections** (new)
+  - Files: Reserved for future file upload/management
+  - Monitoring: Reserved for sandbox monitoring and logs
+  - Output: Reserved for output table mapping configuration
+  - Each with professional "Coming Soon" placeholder
+- **Navigation System** (new)
+  - Sidebar navigation with active state highlighting
+  - Click to switch between sections
+  - Auto-scroll to top when switching sections
+  - Orange highlight for active section
+- **Status Message System** (improved)
+  - Global status messages displayed at top of content area
+  - Persistent across section switches
+  - Auto-dismiss for success messages (5 seconds)
+  - Three types: info (blue), success (green), error (red)
+
+#### Added
+- **Status Cards Feature** - Real-time display of configuration state in Overview
+- **Section Navigation** - Sidebar with icon-based navigation
+- **Advanced Configuration** - Log level and self-test mode controls
+- **Visual Hierarchy** - Professional card-based layout
+- **Better UX** - Clear separation of concerns across sections
+- **Scalability** - Ready for future features (file upload, monitoring, output mapping)
+
+#### Technical
+- Extended Shadow DOM structure (lines 124-933 in content-script.js)
+- Added `updateStatusCards()` function to sync Overview with configuration
+- Added `switchSection()` function for navigation
+- Improved `loadCurrentConfiguration()` to populate all fields including log_level and selftest
+- Enhanced `saveConfiguration()` to handle advanced settings
+
+### Configuration
+
+#### Added
+- `log_level` parameter (ERROR, WARNING, INFO, DEBUG) - default: INFO
+- `selftest` parameter (boolean) - default: false
+
+### Documentation
+
+#### Updated
+- CLAUDE.md: Complete rewrite of UI documentation
+  - New section describing dashboard architecture
+  - Updated "Key Components" with multi-section layout
+  - Updated "Data Flow" to reflect new panel structure
+  - Updated "Configuration Parameter Schema" with new parameters
+  - Updated "Known Issues & Design Decisions" with dashboard details
+  - Updated line references for all code sections
+
 ## [0.1.0] - 2025-10-17
 
 Initial release of kbc-e2b-writer: Chrome extension and Python script for integrating Keboola Connection with e2b sandboxes.

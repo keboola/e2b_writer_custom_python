@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Keboola e2b Writer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Seamless integration between Keboola Connection and e2b sandboxes",
   "permissions": [
     "storage",

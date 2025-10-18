@@ -93,7 +93,16 @@ kbc-e2b-writer/
 - Detects Custom Python component pages via URL pattern matching
 - Checks if `e2b: true` exists in User Parameters before injecting UI
 - Injects "e2b Integration" button into Keboola action panel
-- Creates configuration modal using Shadow DOM for style isolation
+- **Multi-Section Dashboard Panel**: Creates professional dashboard using Shadow DOM with 7 sections:
+  - **Overview**: Context info, status cards (API key, template, timeout), quick actions
+  - **Configuration**: Core e2b settings (API key, template, timeout)
+  - **Setup**: One-click Python 3.13 + Git repository initialization
+  - **Files**: Placeholder for future file management (coming soon)
+  - **Monitoring**: Placeholder for sandbox monitoring (coming soon)
+  - **Output**: Placeholder for output mapping (coming soon)
+  - **Advanced**: Log level configuration (ERROR/WARNING/INFO/DEBUG) and self-test mode
+- **Modern UI Design**: Sidebar navigation, card-based layout, e2b orange (#ff8800) brand colors, professional styling
+- **Status Cards**: Real-time display of configuration status (API key encrypted/set/not set, template name, timeout value)
 - **UI Simplification** (`hideUnnecessarySections()`): Automatically hides unnecessary sections to streamline interface (see Known Issues #1 for details)
 - **Initialization Feature**: One-click Python 3.13 + Git repository setup (see "Initialization Flow" in Data Flow section)
 - **Changelog Tab** (`injectE2bTab()`): Adds "e2b in Keboola" tab that fetches and renders CHANGELOG-SHORT.md inline with markdown-to-HTML conversion
@@ -120,7 +129,9 @@ Right-side action panel, after "Debug mode" button
   "e2b": true,                           // Feature flag (required for injection)
   "#e2b_api_key": "encrypted_key",       // Auto-encrypted by Keboola
   "e2b_template": "code-interpreter",    // Always defined: "code-interpreter" (default) or custom template ID
-  "e2b_timeout": 1800                    // Seconds (default: 30 min)
+  "e2b_timeout": 1800,                   // Seconds (default: 30 min)
+  "log_level": "INFO",                   // Log level: ERROR, WARNING, INFO, or DEBUG
+  "selftest": false                      // Self-test mode for diagnostics
 }
 ```
 
@@ -132,9 +143,13 @@ Right-side action panel, after "Debug mode" button
 1. **Extension loads** → Service worker captures Keboola API token from HTTP headers
 2. **User visits config page** → Content script checks for `e2b: true` in User Parameters
 3. **If enabled** → Button injected into action panel
-4. **User clicks button** → Modal opens, loads current config from CodeMirror
-5. **User configures** → Extension updates User Parameters JSON
-6. **Extension clicks Save** → Configuration persisted to Keboola
+4. **User clicks button** → Dashboard panel opens, loads current config from CodeMirror
+5. **Panel displays**:
+   - Overview section shows context and status cards
+   - Configuration section has form fields for all settings
+   - Advanced section has log level and self-test mode
+6. **User configures** → Extension updates User Parameters JSON
+7. **Extension clicks Save** → Configuration persisted to Keboola
 
 **Initialization Flow:**
 1. **User clicks "Initialize Python & Git Configuration"** → Extension manipulates DOM
@@ -221,60 +236,74 @@ This pattern bypasses content script isolation to access page-level JavaScript o
 
 ## Known Issues & Design Decisions
 
-1. **UI Simplification**: Extension automatically hides unnecessary sections to streamline the interface
+1. **Multi-Section Dashboard**: Extension uses a professional dashboard-style panel with sidebar navigation
+   - **7 sections:** Overview, Configuration, Setup, Files (placeholder), Monitoring (placeholder), Output (placeholder), Advanced
+   - **Status Cards:** Overview section displays real-time status (API key encrypted/set, template, timeout)
+   - **Navigation:** Click sidebar items to switch between sections
+   - **Styling:** Modern design with e2b orange (#ff8800), card-based layout, custom CSS variables
+   - **Shadow DOM:** Complete style isolation from Keboola UI
+   - Rationale: Professional UX that scales for future features (file upload, monitoring, output mapping)
+   - Implementation: Full panel definition in Shadow DOM (content-script.js:124-933)
+
+2. **UI Simplification**: Extension automatically hides unnecessary sections to streamline the interface
    - **Hidden sections:** Configuration Description, Table Output Mapping, File Output Mapping, Variables, Processors
    - **Python Version section:** Radio buttons hidden off-screen (position: absolute; left: -9999px) with informational message "Python Environment: Managed by e2b Integration" shown instead
    - **Source Code radio buttons:** Hidden off-screen to prevent switching between Git and inline code
    - **User Parameters notice:** Blue info box added above editor explaining parameters are managed via e2b Integration panel
    - **Key design decision:** Elements are hidden visually but kept in the DOM so the initialization function can still interact with them programmatically (e.g., clicking Python 3.13 radio button)
    - Rationale: Reduce UI clutter, focus user attention on e2b-relevant settings, while maintaining full programmatic control
-   - Implementation: Uses `position: absolute; left: -9999px; visibility: hidden;` instead of `display: none` or innerHTML replacement (content-script.js:1088-1203)
+   - Implementation: Uses `position: absolute; left: -9999px; visibility: hidden;` instead of `display: none` or innerHTML replacement (content-script.js:1557-1714)
 
-2. **Conditional Injection**: Extension only injects UI when `e2b: true` exists in User Parameters
+3. **Conditional Injection**: Extension only injects UI when `e2b: true` exists in User Parameters
    - Rationale: Avoid clutter for users not using e2b integration
 
-3. **Python Version**: Configured to use Python 3.13
+4. **Python Version**: Configured to use Python 3.13
    - Rationale: Latest stable Python version with improved performance
-   - Location: Initialization function (content-script.js:545-547)
+   - Location: Initialization function (content-script.js:983-994)
 
-4. **Template Parameter Always Defined**: See "Configuration Parameter Schema" section - `e2b_template` is always `"code-interpreter"` or custom template ID
+5. **Template Parameter Always Defined**: See "Configuration Parameter Schema" section - `e2b_template` is always `"code-interpreter"` or custom template ID
 
-5. **Branch Field Detection**: Simplified to use defaults
+6. **Advanced Settings**: Log level and self-test mode now configurable via Advanced section
+   - **Log Level**: ERROR, WARNING, INFO (default), DEBUG
+   - **Self-test Mode**: Toggle to run diagnostics instead of processing data
+   - Stored in User Parameters as `log_level` and `selftest`
+
+7. **Branch Field Detection**: Simplified to use defaults
    - Branch and Script Filename default to "main" and "main.py"
    - Users can manually click "List Branches" / "List Files" if needed
    - Rationale: Avoided complex DOM manipulation with React Select components
 
-6. **CodeMirror Detection**: See "CodeMirror Access Pattern" section for details
+8. **CodeMirror Detection**: See "CodeMirror Access Pattern" section for details
 
-7. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
+9. **SPA Navigation**: Uses `MutationObserver` + `popstate` listener
    - Trade-off: Some performance overhead, but reliable detection
 
-8. **No Build System**: Pure vanilla JS, no bundler
+10. **No Build System**: Pure vanilla JS, no bundler
    - Benefit: Simple deployment, no build step
    - Trade-off: No TypeScript, no tree-shaking
 
-9. **e2b SDK Usage**: See "Testing e2b Integration Locally" section for complete patterns
+11. **e2b SDK Usage**: See "Testing e2b Integration Locally" section for complete patterns
 
-10. **Dual-Mode API Key Loading**: See "Understanding Keboola vs Local Testing Modes" section for details
+12. **Dual-Mode API Key Loading**: See "Understanding Keboola vs Local Testing Modes" section for details
 
-11. **GitHub-Based Deployment**: See "Testing in Keboola" section - all `main.py` changes MUST be pushed to GitHub before Keboola testing
+13. **GitHub-Based Deployment**: See "Testing in Keboola" section - all `main.py` changes MUST be pushed to GitHub before Keboola testing
 
-12. **e2b Integration Button**: Positioned at top of action panel with brand styling
+14. **e2b Integration Button**: Positioned at top of action panel with brand styling
    - **Position**: First item in action list (above green RUN COMPONENT button)
    - **Styling**: Solid e2b orange (#ff8800) background, white text, 40px height
    - **Hover effect**: Darkens to #e67a00 with enhanced shadow
    - **Implementation**: insertBefore() places button before all other actions (content-script.js:1023-1027)
 
-13. **Component Icon Replacement**: Custom Python icon replaced with e2b logo
+15. **Component Icon Replacement**: Custom Python icon replaced with e2b logo
    - **Icon**: e2b black star logo from `chrome-extension/public/e2b.png`
    - **Background**: e2b brand orange (#ff8800) with 8px padding
    - **CSS Override**: Removes `bg-color-white` class and uses `!important` flag
    - **Purpose**: Visual branding and instant recognition of e2b-enabled configs
-   - **Implementation**: replaceComponentIcon() function (content-script.js:1188-1230)
+   - **Implementation**: replaceComponentIcon() function (content-script.js:1717-1758)
 
-14. **Input Mapping Object Access**: CRITICAL - See "Working with Input Mapping" section for complete details on object vs dict access patterns
+16. **Input Mapping Object Access**: CRITICAL - See "Working with Input Mapping" section for complete details on object vs dict access patterns
 
-15. **Changelog Tab**: "e2b in Keboola" tab embedded in configuration page
+17. **Changelog Tab**: "e2b in Keboola" tab embedded in configuration page
    - **Location**: 4th tab after Versions
    - **Content Source**: CHANGELOG-SHORT.md fetched from GitHub raw URL
    - **Rendering**: Custom markdown-to-HTML converter with e2b styling
@@ -527,11 +556,14 @@ logging.debug(f"Full path: {table_def.full_path}")
 
 ### Adding a New Configuration Field
 
-1. Update User Parameters schema in planning docs
-2. Add form field to Shadow DOM in content-script.js:335-393
-3. Update `loadCurrentConfiguration()` to populate field
-4. Update `saveConfiguration()` to read and persist field
-5. Test with encryption (prefix with `#` for sensitive values)
+1. Update User Parameters schema in CLAUDE.md (this file)
+2. Add form field to appropriate section in Shadow DOM:
+   - Core settings: Configuration section (around line 695-737)
+   - Advanced settings: Advanced section (around line 816-836)
+3. Update `loadCurrentConfiguration()` to populate field (around line 1099-1215)
+4. Update `saveConfiguration()` to read and persist field (around line 1252-1372)
+5. Update `updateStatusCards()` if the field should appear in Overview (around line 1217-1249)
+6. Test with encryption (prefix with `#` for sensitive values)
 
 **Example - Template Parameter:**
 - UI dropdown has "Default" (value="") and "Custom template..." (value="__custom__")

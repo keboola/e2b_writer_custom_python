@@ -130,6 +130,31 @@ function createExtensionPanel() {
 
   shadow.innerHTML = `
     <style>
+      :host {
+        --e2b-orange: #ff8800;
+        --e2b-orange-dark: #e67a00;
+        --e2b-orange-light: #ff8800;
+        --e2b-gray-50: #F9FAFB;
+        --e2b-gray-100: #F3F4F6;
+        --e2b-gray-200: #E5E7EB;
+        --e2b-gray-300: #D1D5DB;
+        --e2b-gray-400: #9CA3AF;
+        --e2b-gray-500: #6B7280;
+        --e2b-gray-600: #4B5563;
+        --e2b-gray-700: #374151;
+        --e2b-gray-800: #1F2937;
+        --e2b-gray-900: #111827;
+        --spacing-xs: 4px;
+        --spacing-sm: 8px;
+        --spacing-md: 12px;
+        --spacing-lg: 16px;
+        --spacing-xl: 24px;
+        --spacing-2xl: 32px;
+        --border-radius-sm: 4px;
+        --border-radius-md: 8px;
+        --border-radius-lg: 12px;
+      }
+
       * {
         box-sizing: border-box;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -155,28 +180,40 @@ function createExtensionPanel() {
 
       .panel {
         background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        width: 600px;
-        max-height: 80vh;
-        overflow-y: auto;
-        padding: 24px;
+        border-radius: var(--border-radius-md);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        width: 950px;
+        max-height: 85vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
       }
 
       .panel-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid #e0e0e0;
+        padding: var(--spacing-xl);
+        border-bottom: 1px solid var(--e2b-gray-200);
+        background: white;
+        flex-shrink: 0;
       }
 
       .panel-header h2 {
         margin: 0;
-        font-size: 20px;
-        font-weight: 600;
-        color: #FF6C37;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--e2b-gray-900);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+      }
+
+      .panel-header h2 .logo {
+        width: 24px;
+        height: 24px;
+        background: var(--e2b-orange);
+        border-radius: var(--border-radius-sm);
       }
 
       .close-btn {
@@ -184,103 +221,224 @@ function createExtensionPanel() {
         border: none;
         font-size: 28px;
         cursor: pointer;
-        padding: 0;
-        width: 32px;
-        height: 32px;
-        color: #666;
+        padding: var(--spacing-sm);
+        width: 40px;
+        height: 40px;
+        color: var(--e2b-gray-500);
         line-height: 1;
+        border-radius: var(--border-radius-sm);
+        transition: all 0.2s;
       }
 
       .close-btn:hover {
-        color: #000;
+        color: var(--e2b-gray-900);
+        background: var(--e2b-gray-100);
+      }
+
+      .panel-body {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .panel-sidebar {
+        width: 200px;
+        background: var(--e2b-gray-50);
+        border-right: 1px solid var(--e2b-gray-200);
+        overflow-y: auto;
+        flex-shrink: 0;
+      }
+
+      .panel-nav {
+        padding: var(--spacing-lg);
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md) var(--spacing-lg);
+        margin-bottom: var(--spacing-xs);
+        border-radius: var(--border-radius-sm);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--e2b-gray-700);
+        transition: all 0.2s;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+      }
+
+      .nav-item:hover {
+        background: var(--e2b-gray-100);
+        color: var(--e2b-gray-900);
+      }
+
+      .nav-item.active {
+        background: white;
+        color: var(--e2b-orange);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      }
+
+      .nav-item .icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+
+      .panel-content {
+        flex: 1;
+        overflow-y: auto;
+        background: white;
+      }
+
+      .content-section {
+        display: none;
+        padding: var(--spacing-2xl);
+      }
+
+      .content-section.active {
+        display: block;
       }
 
       .section {
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-xl);
       }
 
-      .section h3 {
+      .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 var(--spacing-lg) 0;
+        color: var(--e2b-gray-900);
+      }
+
+      .section-description {
+        font-size: 14px;
+        color: var(--e2b-gray-600);
+        margin: 0 0 var(--spacing-xl) 0;
+        line-height: 1.6;
+      }
+
+      .card {
+        background: white;
+        border: 1px solid var(--e2b-gray-200);
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-xl);
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .card-title {
         font-size: 16px;
         font-weight: 600;
-        margin-bottom: 12px;
-        color: #333;
+        color: var(--e2b-gray-900);
+        margin: 0 0 var(--spacing-lg) 0;
       }
 
       .form-group {
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-xl);
       }
 
       .form-group label {
         display: block;
         font-size: 14px;
         font-weight: 500;
-        margin-bottom: 6px;
-        color: #333;
+        margin-bottom: var(--spacing-sm);
+        color: var(--e2b-gray-700);
       }
 
       .form-group input,
       .form-group select {
         width: 100%;
         padding: 10px 12px;
-        border: 1px solid #d0d0d0;
-        border-radius: 4px;
+        border: 1px solid var(--e2b-gray-300);
+        border-radius: var(--border-radius-sm);
         font-size: 14px;
-        transition: border-color 0.2s;
+        transition: all 0.2s;
+        color: var(--e2b-gray-900);
+        background: white;
+      }
+
+      .form-group input:hover,
+      .form-group select:hover {
+        border-color: var(--e2b-gray-400);
       }
 
       .form-group input:focus,
       .form-group select:focus {
         outline: none;
-        border-color: #FF6C37;
-        box-shadow: 0 0 0 2px rgba(255, 108, 55, 0.1);
+        border-color: var(--e2b-orange);
+        box-shadow: 0 0 0 3px rgba(255, 136, 0, 0.1);
       }
 
       .form-group .hint {
         font-size: 12px;
-        color: #666;
-        margin-top: 4px;
+        color: var(--e2b-gray-500);
+        margin-top: var(--spacing-sm);
+        line-height: 1.5;
       }
 
       .btn {
         padding: 10px 20px;
         border: none;
-        border-radius: 4px;
+        border-radius: var(--border-radius-sm);
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
-        margin-right: 8px;
-        transition: background 0.2s;
+        margin-right: var(--spacing-sm);
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-sm);
       }
 
       .btn-primary {
-        background: #FF6C37;
+        background: var(--e2b-orange);
         color: white;
       }
 
       .btn-primary:hover {
-        background: #E85A28;
+        background: var(--e2b-orange-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+
+      .btn-primary:active {
+        transform: translateY(0);
       }
 
       .btn-primary:disabled {
-        background: #ccc;
+        background: var(--e2b-gray-300);
         cursor: not-allowed;
+        transform: none;
       }
 
       .btn-secondary {
-        background: #f5f5f5;
-        color: #333;
+        background: white;
+        color: var(--e2b-gray-700);
+        border: 1px solid var(--e2b-gray-300);
       }
 
       .btn-secondary:hover {
-        background: #e0e0e0;
+        background: var(--e2b-gray-50);
+        border-color: var(--e2b-gray-400);
+      }
+
+      .btn-large {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 24px;
+        font-size: 15px;
       }
 
       .status-message {
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 16px;
+        padding: var(--spacing-lg);
+        border-radius: var(--border-radius-sm);
+        margin-bottom: var(--spacing-lg);
         font-size: 14px;
         display: none;
+        line-height: 1.5;
       }
 
       .status-message.visible {
@@ -288,139 +446,402 @@ function createExtensionPanel() {
       }
 
       .status-message.success {
-        background: #e8f5e9;
-        color: #2e7d32;
-        border: 1px solid #4caf50;
+        background: #ECFDF5;
+        color: #065F46;
+        border: 1px solid #10B981;
       }
 
       .status-message.error {
-        background: #ffebee;
-        color: #c62828;
-        border: 1px solid #f44336;
+        background: #FEF2F2;
+        color: #991B1B;
+        border: 1px solid #EF4444;
       }
 
       .status-message.info {
-        background: #e3f2fd;
-        color: #1565c0;
-        border: 1px solid #2196f3;
+        background: #EFF6FF;
+        color: #1E40AF;
+        border: 1px solid #3B82F6;
       }
 
       .info-box {
-        background: #FFF5F2;
-        border-left: 4px solid #FF6C37;
-        padding: 12px;
-        margin-bottom: 16px;
+        background: var(--e2b-gray-50);
+        border-left: 4px solid var(--e2b-orange);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
         font-size: 13px;
+        line-height: 1.6;
+        border-radius: var(--border-radius-sm);
       }
 
       .info-box strong {
         display: block;
-        margin-bottom: 4px;
+        margin-bottom: var(--spacing-xs);
+        color: var(--e2b-gray-900);
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: var(--spacing-xs) var(--spacing-md);
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .badge-success {
+        background: #ECFDF5;
+        color: #065F46;
+      }
+
+      .badge-warning {
+        background: #FEF3C7;
+        color: #92400E;
+      }
+
+      .badge-info {
+        background: #EFF6FF;
+        color: #1E40AF;
+      }
+
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+      }
+
+      .status-card {
+        background: var(--e2b-gray-50);
+        border: 1px solid var(--e2b-gray-200);
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-lg);
+      }
+
+      .status-card-label {
+        font-size: 12px;
+        color: var(--e2b-gray-500);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .status-card-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--e2b-gray-900);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+      }
+
+      .actions-footer {
+        display: flex;
+        gap: var(--spacing-md);
+        padding-top: var(--spacing-xl);
+        border-top: 1px solid var(--e2b-gray-200);
+        margin-top: var(--spacing-2xl);
+      }
+
+      .placeholder-section {
+        text-align: center;
+        padding: var(--spacing-2xl);
+        color: var(--e2b-gray-500);
+      }
+
+      .placeholder-section .icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto var(--spacing-lg);
+        opacity: 0.3;
+      }
+
+      .placeholder-section h3 {
+        font-size: 18px;
+        color: var(--e2b-gray-700);
+        margin: 0 0 var(--spacing-sm) 0;
+      }
+
+      .placeholder-section p {
+        font-size: 14px;
+        color: var(--e2b-gray-500);
+        margin: 0;
       }
     </style>
 
     <div class="panel-overlay" id="panel-overlay">
       <div class="panel">
+        <!-- Header -->
         <div class="panel-header">
-          <h2 id="panel-title">e2b Integration</h2>
+          <h2 id="panel-title">
+            <span class="logo"></span>
+            e2b Integration
+          </h2>
           <button class="close-btn" id="close-panel">&times;</button>
         </div>
 
-        <div id="status-message" class="status-message"></div>
+        <!-- Body with sidebar and content -->
+        <div class="panel-body">
+          <!-- Sidebar Navigation -->
+          <div class="panel-sidebar">
+            <nav class="panel-nav" id="panel-nav">
+              <button class="nav-item active" data-section="overview">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Overview</span>
+              </button>
+              <button class="nav-item" data-section="configuration">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24m0-12.72l-4.24 4.24m-4.24 4.24L5.64 18.36"></path>
+                </svg>
+                <span>Configuration</span>
+              </button>
+              <button class="nav-item" data-section="setup">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                </svg>
+                <span>Setup</span>
+              </button>
+              <button class="nav-item" data-section="files">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                  <polyline points="13 2 13 9 20 9"></polyline>
+                </svg>
+                <span>Files</span>
+              </button>
+              <button class="nav-item" data-section="monitoring">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                <span>Monitoring</span>
+              </button>
+              <button class="nav-item" data-section="output">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span>Output</span>
+              </button>
+              <button class="nav-item" data-section="advanced">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span>Advanced</span>
+              </button>
+            </nav>
+          </div>
 
-        <div class="info-box">
-          <strong>Context</strong>
-          Project: <span id="project-id">-</span> |
-          Config: <span id="config-id">-</span> |
-          Stack: <span id="stack">-</span>
+          <!-- Content Area -->
+          <div class="panel-content">
+            <!-- Status Message (shown across all sections) -->
+            <div id="status-message" class="status-message"></div>
+
+            <!-- Overview Section -->
+            <div class="content-section active" id="section-overview">
+              <h1 class="section-title">Overview</h1>
+              <p class="section-description">Quick status and context information for your e2b integration.</p>
+
+              <div class="card">
+                <div class="card-title">Context</div>
+                <div style="font-size: 13px; color: var(--e2b-gray-600); line-height: 1.8;">
+                  <div><strong>Project:</strong> <span id="project-id">-</span></div>
+                  <div><strong>Config:</strong> <span id="config-id">-</span></div>
+                  <div><strong>Stack:</strong> <span id="stack">-</span></div>
+                </div>
+              </div>
+
+              <div class="status-grid">
+                <div class="status-card">
+                  <div class="status-card-label">API Key</div>
+                  <div class="status-card-value" id="status-api-key">
+                    <span class="badge badge-warning">Not set</span>
+                  </div>
+                </div>
+                <div class="status-card">
+                  <div class="status-card-label">Template</div>
+                  <div class="status-card-value" id="status-template">code-interpreter</div>
+                </div>
+                <div class="status-card">
+                  <div class="status-card-label">Timeout</div>
+                  <div class="status-card-value" id="status-timeout">1800s</div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-title">Quick Actions</div>
+                <p style="margin: 0 0 var(--spacing-lg) 0; font-size: 14px; color: var(--e2b-gray-600);">
+                  Common tasks to get started with e2b integration.
+                </p>
+                <button class="btn btn-primary btn-large" id="quick-setup-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                  </svg>
+                  Initialize Python & Git Configuration
+                </button>
+              </div>
+            </div>
+
+            <!-- Configuration Section -->
+            <div class="content-section" id="section-configuration">
+              <h1 class="section-title">Configuration</h1>
+              <p class="section-description">Configure your e2b sandbox settings and parameters.</p>
+
+              <div class="card">
+                <div class="card-title">Core Settings</div>
+
+                <div class="form-group">
+                  <label for="e2b-api-key">e2b API Key</label>
+                  <input
+                    type="password"
+                    id="e2b-api-key"
+                    placeholder="e2b_..."
+                  />
+                  <div class="hint">This will be encrypted by Keboola (stored with # prefix)</div>
+                </div>
+
+                <div class="form-group">
+                  <label for="e2b-template">Sandbox Template</label>
+                  <select id="e2b-template">
+                    <option value="">Default (e2b code-interpreter)</option>
+                    <option value="__custom__">Custom template...</option>
+                  </select>
+                  <div class="hint">Use default or specify a custom template ID built via e2b CLI</div>
+                </div>
+
+                <div class="form-group" id="custom-template-group" style="display: none;">
+                  <label for="e2b-template-custom">Custom Template ID</label>
+                  <input
+                    type="text"
+                    id="e2b-template-custom"
+                    placeholder="your-template-id"
+                  />
+                  <div class="hint">Enter the template ID from 'e2b template build'</div>
+                </div>
+
+                <div class="form-group">
+                  <label for="e2b-timeout">Timeout (seconds)</label>
+                  <input
+                    type="number"
+                    id="e2b-timeout"
+                    value="1800"
+                    min="60"
+                    max="86400"
+                  />
+                  <div class="hint">Default: 1800 (30 minutes)</div>
+                </div>
+              </div>
+
+              <div class="actions-footer">
+                <button class="btn btn-primary" id="save-config-btn">Save Configuration</button>
+                <button class="btn btn-secondary" id="close-panel-btn">Cancel</button>
+              </div>
+            </div>
+
+            <!-- Setup Section -->
+            <div class="content-section" id="section-setup">
+              <h1 class="section-title">Setup & Initialization</h1>
+              <p class="section-description">Initialize your Python environment and Git repository for e2b writer.</p>
+
+              <div class="card">
+                <div class="card-title">One-Click Setup</div>
+                <div class="info-box">
+                  <strong>Automated Configuration</strong>
+                  This will automatically configure:
+                  <ul style="margin: var(--spacing-sm) 0 0 0; padding-left: 20px;">
+                    <li>Python 3.13 environment</li>
+                    <li>Git repository connection</li>
+                    <li>Default branch and script settings</li>
+                  </ul>
+                </div>
+                <button class="btn btn-primary btn-large" id="init-e2b-writer-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                  </svg>
+                  Initialize Python & Git Configuration
+                </button>
+              </div>
+            </div>
+
+            <!-- Files Section (Placeholder) -->
+            <div class="content-section" id="section-files">
+              <div class="placeholder-section">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                  <polyline points="13 2 13 9 20 9"></polyline>
+                </svg>
+                <h3>File Management</h3>
+                <p>Upload and manage files in your e2b sandbox.</p>
+                <p><strong>Coming Soon</strong></p>
+              </div>
+            </div>
+
+            <!-- Monitoring Section (Placeholder) -->
+            <div class="content-section" id="section-monitoring">
+              <div class="placeholder-section">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                <h3>Sandbox Monitoring</h3>
+                <p>View live status, logs, and resource usage.</p>
+                <p><strong>Coming Soon</strong></p>
+              </div>
+            </div>
+
+            <!-- Output Mapping Section (Placeholder) -->
+            <div class="content-section" id="section-output">
+              <div class="placeholder-section">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <h3>Output Mapping</h3>
+                <p>Configure how data flows from e2b back to Keboola.</p>
+                <p><strong>Coming Soon</strong></p>
+              </div>
+            </div>
+
+            <!-- Advanced Settings Section -->
+            <div class="content-section" id="section-advanced">
+              <h1 class="section-title">Advanced Settings</h1>
+              <p class="section-description">Configure logging, debugging, and advanced execution options.</p>
+
+              <div class="card">
+                <div class="card-title">Debugging & Logging</div>
+
+                <div class="form-group">
+                  <label for="log-level">Log Level</label>
+                  <select id="log-level">
+                    <option value="ERROR">ERROR - Only errors</option>
+                    <option value="WARNING">WARNING - Warnings + errors</option>
+                    <option value="INFO" selected>INFO - Normal (recommended)</option>
+                    <option value="DEBUG">DEBUG - Verbose (detailed output)</option>
+                  </select>
+                  <div class="hint">Controls logging verbosity (default: INFO)</div>
+                </div>
+
+                <div class="form-group">
+                  <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="selftest" style="margin-right: var(--spacing-sm);">
+                    <span>Self-test Mode</span>
+                  </label>
+                  <div class="hint">Run e2b sandbox tests instead of processing input data (for debugging)</div>
+                </div>
+              </div>
+
+              <div class="actions-footer">
+                <button class="btn btn-primary" id="save-advanced-btn">Save Settings</button>
+                <button class="btn btn-secondary" id="cancel-advanced-btn">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <div class="section">
-          <h3>🚀 Initialize e2b Writer</h3>
-          <div class="info-box">
-            <strong>One-click setup</strong>
-            This will automatically configure the Python environment and Git repository for e2b writer integration.
-          </div>
-          <button class="btn btn-primary" id="init-e2b-writer-btn" style="width: 100%;">
-            ⚙️ Initialize Python & Git Configuration
-          </button>
-        </div>
-
-        <div class="section">
-          <h3>📦 e2b Configuration</h3>
-
-          <div class="form-group">
-            <label for="e2b-api-key">
-              e2b API Key
-            </label>
-            <input
-              type="password"
-              id="e2b-api-key"
-              placeholder="e2b_..."
-            />
-            <div class="hint">This will be encrypted by Keboola (stored with # prefix)</div>
-          </div>
-
-          <div class="form-group">
-            <label for="e2b-template">Sandbox Template</label>
-            <select id="e2b-template">
-              <option value="">Default (e2b code-interpreter)</option>
-              <option value="__custom__">Custom template...</option>
-            </select>
-            <div class="hint">Use default or specify a custom template ID built via e2b CLI</div>
-          </div>
-
-          <div class="form-group" id="custom-template-group" style="display: none;">
-            <label for="e2b-template-custom">Custom Template ID</label>
-            <input
-              type="text"
-              id="e2b-template-custom"
-              placeholder="your-template-id"
-            />
-            <div class="hint">Enter the template ID from 'e2b template build'</div>
-          </div>
-
-          <div class="form-group">
-            <label for="e2b-timeout">Timeout (seconds)</label>
-            <input
-              type="number"
-              id="e2b-timeout"
-              value="1800"
-              min="60"
-              max="86400"
-            />
-            <div class="hint">Default: 1800 (30 minutes)</div>
-          </div>
-
-          <div class="form-group">
-            <label for="log-level">Log Level</label>
-            <select id="log-level">
-              <option value="ERROR">ERROR - Only errors</option>
-              <option value="WARNING">WARNING - Warnings + errors</option>
-              <option value="INFO" selected>INFO - Normal (recommended)</option>
-              <option value="DEBUG">DEBUG - Verbose (detailed output)</option>
-            </select>
-            <div class="hint">Controls logging verbosity (default: INFO)</div>
-          </div>
-
-          <div class="form-group">
-            <label style="display: flex; align-items: center; cursor: pointer;">
-              <input type="checkbox" id="selftest" style="margin-right: 8px;">
-              <span>Self-test Mode</span>
-            </label>
-            <div class="hint">Run e2b sandbox tests instead of processing input data (for debugging)</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <button class="btn btn-primary" id="save-config-btn">
-            Update User Parameters
-          </button>
-          <button class="btn btn-secondary" id="close-panel-btn">
-            Cancel
-          </button>
-        </div>
-
       </div>
     </div>
   `;
@@ -430,19 +851,73 @@ function createExtensionPanel() {
   // Populate context info
   const ctx = extractContext();
   if (ctx) {
+    // Populate context in Overview section
     shadow.getElementById('project-id').textContent = ctx.projectId;
     shadow.getElementById('config-id').textContent = ctx.configId;
     shadow.getElementById('stack').textContent = ctx.stack;
   }
 
-  // Event listeners
+  // Navigation handling
+  const navItems = shadow.querySelectorAll('.nav-item');
+  const contentSections = shadow.querySelectorAll('.content-section');
+
+  function switchSection(sectionId) {
+    // Update active nav item
+    navItems.forEach(item => {
+      if (item.dataset.section === sectionId) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+
+    // Update active content section
+    contentSections.forEach(section => {
+      if (section.id === `section-${sectionId}`) {
+        section.classList.add('active');
+      } else {
+        section.classList.remove('active');
+      }
+    });
+
+    // Scroll content to top when switching sections
+    const panelContent = shadow.querySelector('.panel-content');
+    if (panelContent) {
+      panelContent.scrollTop = 0;
+    }
+  }
+
+  // Add click listeners to nav items
+  navItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const sectionId = item.dataset.section;
+      switchSection(sectionId);
+    });
+  });
+
+  // Event listeners - Close buttons
   shadow.getElementById('close-panel').addEventListener('click', closePanel);
   shadow.getElementById('close-panel-btn').addEventListener('click', closePanel);
   shadow.getElementById('panel-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'panel-overlay') closePanel();
   });
+
+  // Event listeners - Configuration section
   shadow.getElementById('save-config-btn').addEventListener('click', saveConfiguration);
+
+  // Event listeners - Setup section
   shadow.getElementById('init-e2b-writer-btn').addEventListener('click', initializeE2bWriter);
+  shadow.getElementById('quick-setup-btn').addEventListener('click', () => {
+    // Switch to setup section and run initialization
+    switchSection('setup');
+    setTimeout(() => {
+      initializeE2bWriter();
+    }, 100);
+  });
+
+  // Event listeners - Advanced section
+  shadow.getElementById('save-advanced-btn').addEventListener('click', saveConfiguration);
+  shadow.getElementById('cancel-advanced-btn').addEventListener('click', closePanel);
 
   // Template selector - show/hide custom template input
   shadow.getElementById('e2b-template').addEventListener('change', (e) => {
@@ -721,6 +1196,9 @@ async function loadCurrentConfiguration() {
       console.log('[e2b Extension] No selftest found in params, using default (false)');
     }
 
+    // Update status cards in Overview section
+    updateStatusCards(shadow, params);
+
     if (hasExistingConfig) {
       showStatus('✓ Loaded existing e2b configuration', 'success');
       setTimeout(() => {
@@ -733,6 +1211,40 @@ async function loadCurrentConfiguration() {
   } catch (error) {
     console.error('[e2b Extension] Load config error:', error);
     showStatus('Ready to configure e2b', 'info');
+  }
+}
+
+// Update status cards in Overview section
+function updateStatusCards(shadow, params) {
+  if (!shadow || !params) return;
+
+  try {
+    // Update API Key status
+    const apiKeyStatus = shadow.getElementById('status-api-key');
+    if (apiKeyStatus) {
+      if (params['#e2b_api_key']) {
+        const isEncrypted = params['#e2b_api_key'].startsWith('KBC::ProjectSecure::');
+        apiKeyStatus.innerHTML = `<span class="badge badge-success">${isEncrypted ? 'Encrypted' : 'Set'}</span>`;
+      } else {
+        apiKeyStatus.innerHTML = '<span class="badge badge-warning">Not set</span>';
+      }
+    }
+
+    // Update Template status
+    const templateStatus = shadow.getElementById('status-template');
+    if (templateStatus) {
+      const template = params.e2b_template || 'code-interpreter';
+      templateStatus.textContent = template;
+    }
+
+    // Update Timeout status
+    const timeoutStatus = shadow.getElementById('status-timeout');
+    if (timeoutStatus) {
+      const timeout = params.e2b_timeout || 1800;
+      timeoutStatus.textContent = `${timeout}s`;
+    }
+  } catch (error) {
+    console.error('[e2b Extension] Error updating status cards:', error);
   }
 }
 
